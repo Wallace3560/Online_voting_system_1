@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<!--
+  Overview: Admin Verify Voters
+  Purpose: Defines the page structure and content for this view.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Verify Voters</title>
+    <link rel="stylesheet" href="assets/css/views/admin_verify_voters.css">
+    <link rel="stylesheet" href="assets/css/global_menu.css">
+    <script src="assets/js/global_menu.js" defer></script>
+</head>
+<body>
+<div class="main-container">
+    <div class="card" style="max-width: 1120px; margin: 0 auto;">
+        <div class="card-header">
+            <h2>Admin Verification Dashboard</h2>
+            <p>Manage voter verification, election status, candidates, and publication of results.</p>
+            <p>Signed in as role: <strong><?php echo htmlspecialchars($admin_role ?? 'super_admin'); ?></strong></p>
+        </div>
+        <div class="card-body">
+            <?php if ($error): ?>
+                <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+            <?php endif; ?>
+            <?php if ($message): ?>
+                <div class="alert alert-info"><?php echo htmlspecialchars($message); ?></div>
+            <?php endif; ?>
+
+            <div class="stats-grid">
+                <div class="stat-card"><p>Total Voters</p><strong><?php echo (int)($stats['total'] ?? 0); ?></strong></div>
+                <div class="stat-card"><p>Pending</p><strong><?php echo (int)($stats['pending'] ?? 0); ?></strong></div>
+                <div class="stat-card"><p>Verified</p><strong><?php echo (int)($stats['verified'] ?? 0); ?></strong></div>
+                <div class="stat-card"><p>Rejected</p><strong><?php echo (int)($stats['rejected'] ?? 0); ?></strong></div>
+            </div>
+
+            <h3 style="margin-top: 20px;">Election Controls</h3>
+            <div class="stats-grid" style="margin-bottom: 10px;">
+                <div class="stat-card"><p>Voting</p><strong><?php echo $election_open ? 'OPEN' : 'CLOSED'; ?></strong></div>
+                <div class="stat-card"><p>Results</p><strong><?php echo $results_published ? 'PUBLISHED' : 'HIDDEN'; ?></strong></div>
+                <div class="stat-card"><p>Verified Voters</p><strong><?php echo (int)($stats['verified'] ?? 0); ?></strong></div>
+                <div class="stat-card"><p>Total Votes Cast</p><strong><?php echo (int)getTotalVotesCast(); ?></strong></div>
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 18px;">
+                <?php if (!empty($can_manage)): ?>
+                <form method="POST" action="admin_verify_voters.php" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                    <button class="btn btn-secondary" name="action" value="open_election" type="submit">Open Election</button>
+                </form>
+                <form method="POST" action="admin_verify_voters.php" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                    <button class="btn btn-danger" name="action" value="close_election" type="submit">Close Election</button>
+                </form>
+                <form method="POST" action="admin_verify_voters.php" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                    <button class="btn btn-primary" name="action" value="publish_results" type="submit">Publish Results</button>
+                </form>
+                <form method="POST" action="admin_verify_voters.php" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                    <button class="btn btn-secondary" name="action" value="hide_results" type="submit">Hide Results</button>
+                </form>
+                <?php endif; ?>
+            </div>
+
+            <?php if (!empty($can_manage)): ?>
+            <h3 style="margin-top: 20px;">Election Archive and Fresh Reset</h3>
+            <div class="alert alert-info">Use this when a new election is approaching. It archives current results to the selected year, clears candidates and votes, and reopens setup for a fresh election cycle.</div>
+            <div class="form-row" style="margin-bottom: 14px;">
+                <form method="POST" action="admin_verify_voters.php" style="display:grid; gap:8px; grid-template-columns: 1fr 2fr auto; align-items:end; width:100%;">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                    <input type="hidden" name="action" value="archive_reset_election">
+                    <div class="form-group" style="margin:0;">
+                        <label>Election Year *</label>
+                        <input type="number" name="archive_year" min="2000" max="2100" value="<?php echo (int)date('Y'); ?>" required>
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label>Note (optional)</label>
+                        <input type="text" name="archive_note" maxlength="255" placeholder="Example: General election completed and reset for next cycle">
+                    </div>
+                    <button class="btn btn-danger" type="submit">Archive Results and Reset Candidates</button>
+                </form>
+            </div>
+
+            <h3 style="margin-top: 10px;">Download Archived Election Results</h3>
+            <form method="POST" action="admin_verify_voters.php" style="display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom: 20px;">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                <input type="hidden" name="action" value="download_archived_results">
+                <div class="form-group" style="min-width: 220px; margin:0;">
+                    <label>Archived Year *</label>
+                    <select name="download_year" required>
+                        <option value="">Select archived year</option>
+                        <?php foreach (($archived_years ?? []) as $archive_year): ?>
+                            <option value="<?php echo (int)$archive_year; ?>"><?php echo (int)$archive_year; ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <button class="btn btn-secondary" type="submit">Download Results CSV</button>
+            </form>
+            <?php endif; ?>
+
+            <?php if (empty($can_manage)): ?>
+                <div class="alert alert-info">Your role has read-only access. Management actions are disabled.</div>
+            <?php endif; ?>
+
+            <?php if (!empty($can_create_sub_admins)): ?>
+            <h3 style="margin-top: 20px;">Create Additional Admins (Restricted)</h3>
+            <div class="alert alert-info">Super admins and election officers can create additional admins. Use <strong>Sub Admin</strong> for restricted access in sensitive areas.</div>
+            <form method="POST" action="admin_verify_voters.php" style="margin-bottom: 20px;">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                <input type="hidden" name="action" value="create_sub_admin">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" name="full_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email *</label>
+                        <input type="email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Temporary Password *</label>
+                        <input type="text" name="password" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Role *</label>
+                        <select name="new_admin_role" required>
+                            <option value="sub_admin">Sub Admin (restricted)</option>
+                            <option value="election_officer">Election Officer</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" type="submit">Create Admin</button>
+            </form>
+            <?php endif; ?>
+
+            <?php if (!empty($can_submit_manual_votes)): ?>
+            <h3 style="margin-top: 20px;">Manual Vote Intake (Low Network Areas)</h3>
+            <div class="alert alert-info">Use this when votes are collected manually. Submitted batches are only counted after approval by <strong>two different super admins</strong>.</div>
+            <form method="POST" action="admin_verify_voters.php" style="margin-bottom: 20px;">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                <input type="hidden" name="action" value="submit_manual_vote_batch">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Batch Title *</label>
+                        <input type="text" name="batch_title" placeholder="Example: Ward stream B manual tally" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Position *</label>
+                        <select name="manual_position_id" required>
+                            <option value="">Select Position</option>
+                            <?php foreach ($positions as $position): ?>
+                                <option value="<?php echo (int)$position['position_id']; ?>"><?php echo htmlspecialchars($position['position_name']); ?> (<?php echo htmlspecialchars($position['scope']); ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Proposed Votes *</label>
+                        <input type="number" name="proposed_votes" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>County (optional)</label>
+                        <select name="manual_county_id">
+                            <option value="">Any County</option>
+                            <?php foreach ($counties as $county): ?>
+                                <option value="<?php echo (int)$county['county_id']; ?>"><?php echo htmlspecialchars($county['county_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Constituency (optional)</label>
+                        <select name="manual_constituency_id">
+                            <option value="">Any Constituency</option>
+                            <?php foreach (($all_constituencies ?? []) as $constituency): ?>
+                                <option value="<?php echo (int)$constituency['constituency_id']; ?>"><?php echo htmlspecialchars($constituency['constituency_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Ward (optional)</label>
+                        <select name="manual_ward_id">
+                            <option value="">Any Ward</option>
+                            <?php foreach (($all_wards ?? []) as $ward): ?>
+                                <option value="<?php echo (int)$ward['ward_id']; ?>"><?php echo htmlspecialchars($ward['ward_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Source/Validation Note *</label>
+                        <input type="text" name="source_note" placeholder="Example: Presiding officer signed form 34 attached" required>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" type="submit">Submit Manual Vote Batch</button>
+            </form>
+            <?php endif; ?>
+
+            <?php if (!empty($can_review_manual_votes)): ?>
+            <h3 style="margin-top: 20px;">Pending Manual Vote Batches (Super Admin Dual Approval)</h3>
+            <div class="table-wrap" style="margin-bottom: 20px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Batch</th>
+                            <th>Position/Area</th>
+                            <th>Proposed Votes</th>
+                            <th>Submitted By</th>
+                            <th>Approvals</th>
+                            <th>Review</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php if (empty($pending_manual_batches)): ?>
+                        <tr><td colspan="6">No pending manual vote batches.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($pending_manual_batches as $batch): ?>
+                            <tr>
+                                <td>
+                                    <strong><?php echo htmlspecialchars($batch['batch_title'] ?? 'Manual Batch'); ?></strong>
+                                    <div class="footer-note" style="text-align:left; margin-top:4px;"><?php echo htmlspecialchars($batch['source_note'] ?? ''); ?></div>
+                                </td>
+                                <td>
+                                    <?php echo htmlspecialchars($batch['position_name'] ?? '-'); ?><br>
+                                    <?php if (!empty($batch['ward_name'])): ?>Ward: <?php echo htmlspecialchars($batch['ward_name']); ?><?php elseif (!empty($batch['constituency_name'])): ?>Constituency: <?php echo htmlspecialchars($batch['constituency_name']); ?><?php elseif (!empty($batch['county_name'])): ?>County: <?php echo htmlspecialchars($batch['county_name']); ?><?php else: ?>National<?php endif; ?>
+                                </td>
+                                <td><?php echo (int)($batch['proposed_votes'] ?? 0); ?></td>
+                                <td><?php echo htmlspecialchars($batch['submitted_by_name'] ?? 'Admin'); ?></td>
+                                <td><?php echo (int)($batch['approvals_count'] ?? 0); ?> approvals / <?php echo (int)($batch['rejects_count'] ?? 0); ?> rejects</td>
+                                <td>
+                                    <form method="POST" action="admin_verify_voters.php" style="display:grid; gap:6px;">
+                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                        <input type="hidden" name="action" value="review_manual_vote_batch">
+                                        <input type="hidden" name="batch_id" value="<?php echo (int)$batch['batch_id']; ?>">
+                                        <select name="candidate_id" required>
+                                            <option value="">Select Candidate</option>
+                                            <?php foreach (getCandidatesForPosition((int)$batch['position_id']) as $candidate): ?>
+                                                <option value="<?php echo (int)$candidate['candidate_id']; ?>"><?php echo htmlspecialchars($candidate['full_name']); ?> - <?php echo htmlspecialchars($candidate['party_name']); ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <input type="number" name="approved_votes" min="1" value="<?php echo (int)($batch['proposed_votes'] ?? 1); ?>" required>
+                                        <select name="decision" required>
+                                            <option value="approved">Approve</option>
+                                            <option value="rejected">Reject</option>
+                                        </select>
+                                        <input type="text" name="decision_note" placeholder="Decision note" value="Reviewed by super admin" required>
+                                        <button class="btn btn-secondary" type="submit">Submit Review</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($can_manage)): ?>
+            <h3 style="margin-top: 20px;">Create By-Election</h3>
+            <div class="alert alert-info">Use this when a leader leaves office. The by-election will only be open for voters eligible in the affected area.</div>
+            <form method="POST" action="admin_verify_voters.php" style="margin-bottom: 20px;">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                <input type="hidden" name="action" value="create_by_election">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Position *</label>
+                        <select name="by_position_id" id="by_position_id" required>
+                            <option value="">Select Position</option>
+                            <?php foreach ($positions as $position): ?>
+                                <option value="<?php echo (int)$position['position_id']; ?>" data-scope="<?php echo htmlspecialchars($position['scope']); ?>">
+                                    <?php echo htmlspecialchars($position['position_name']); ?> (<?php echo htmlspecialchars($position['scope']); ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>By-Election Title</label>
+                        <input type="text" name="by_election_title" placeholder="Example: By-Election for MCA - Kariobangi Ward">
+                    </div>
+                    <div class="form-group">
+                        <label>Affected Candidate Name</label>
+                        <input type="text" name="affected_candidate_name" placeholder="Name of previous office holder">
+                    </div>
+                    <div class="form-group">
+                        <label>Reason *</label>
+                        <input type="text" name="by_reason" required placeholder="Example: Office became vacant after death">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" id="by-county-wrap" style="display:none;">
+                        <label>County *</label>
+                        <select name="by_county_id" id="by_county_id">
+                            <option value="">Select County</option>
+                            <?php foreach ($counties as $county): ?>
+                                <option value="<?php echo (int)$county['county_id']; ?>"><?php echo htmlspecialchars($county['county_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group" id="by-constituency-wrap" style="display:none;">
+                        <label>Constituency *</label>
+                        <select name="by_constituency_id" id="by_constituency_id">
+                            <option value="">Select Constituency</option>
+                            <?php foreach (($all_constituencies ?? []) as $constituency): ?>
+                                <option value="<?php echo (int)$constituency['constituency_id']; ?>"><?php echo htmlspecialchars($constituency['constituency_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group" id="by-ward-wrap" style="display:none;">
+                        <label>Ward *</label>
+                        <select name="by_ward_id" id="by_ward_id">
+                            <option value="">Select Ward</option>
+                            <?php foreach (($all_wards ?? []) as $ward): ?>
+                                <option value="<?php echo (int)$ward['ward_id']; ?>"><?php echo htmlspecialchars($ward['ward_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn btn-danger" type="submit">Create By-Election</button>
+            </form>
+
+            <h3 style="margin-top: 10px;">Active and Closed By-Elections</h3>
+            <div class="table-wrap" style="margin-bottom: 20px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Position</th>
+                            <th>Area</th>
+                            <th>Status</th>
+                            <th>Candidates</th>
+                            <th>Votes</th>
+                            <th>Manage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php if (empty($by_elections)): ?>
+                        <tr><td colspan="7">No by-elections created yet.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($by_elections as $by): ?>
+                            <tr>
+                                <td>
+                                    <strong><?php echo htmlspecialchars($by['election_title'] ?? 'By-Election'); ?></strong>
+                                    <?php if (!empty($by['affected_candidate_name'])): ?>
+                                        <div class="footer-note" style="text-align:left; margin-top:4px;">Previous holder: <?php echo htmlspecialchars($by['affected_candidate_name']); ?></div>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo htmlspecialchars($by['position_name'] ?? ''); ?></td>
+                                <td>
+                                    <?php if (($by['scope'] ?? '') === 'county'): ?>
+                                        County: <?php echo htmlspecialchars($by['county_name'] ?? '-'); ?>
+                                    <?php elseif (($by['scope'] ?? '') === 'constituency'): ?>
+                                        Constituency: <?php echo htmlspecialchars($by['constituency_name'] ?? '-'); ?>
+                                    <?php elseif (($by['scope'] ?? '') === 'ward'): ?>
+                                        Ward: <?php echo htmlspecialchars($by['ward_name'] ?? '-'); ?>
+                                    <?php else: ?>
+                                        National
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo strtoupper(htmlspecialchars($by['status'] ?? '')); ?></td>
+                                <td><?php echo (int)($by['candidates_count'] ?? 0); ?></td>
+                                <td><?php echo (int)($by['votes_count'] ?? 0); ?></td>
+                                <td>
+                                    <?php if (!empty($can_manage)): ?>
+                                        <form method="POST" action="admin_verify_voters.php" enctype="multipart/form-data" style="display:grid; gap:6px; margin-bottom:8px;">
+                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                            <input type="hidden" name="action" value="add_by_election_candidate">
+                                            <input type="hidden" name="by_election_id" value="<?php echo (int)$by['by_election_id']; ?>">
+                                            <input type="text" name="full_name" placeholder="Candidate name" required>
+                                            <input type="text" name="party_name" placeholder="Party" required>
+                                            <input type="file" name="candidate_photo" accept="image/jpeg,image/png,image/webp">
+                                            <button class="btn btn-secondary" type="submit">Add Candidate</button>
+                                        </form>
+
+                                        <?php if (($by['status'] ?? '') === 'active'): ?>
+                                        <form method="POST" action="admin_verify_voters.php" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                            <input type="hidden" name="action" value="close_by_election">
+                                            <input type="hidden" name="by_election_id" value="<?php echo (int)$by['by_election_id']; ?>">
+                                            <button class="btn btn-danger" type="submit">Close By-Election</button>
+                                        </form>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                    <span class="status-badge status-warning">Read-only role</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 style="margin-top: 20px;">Add Candidate</h3>
+            <form method="POST" action="admin_verify_voters.php" enctype="multipart/form-data">
+                <input type="hidden" name="action" value="add_candidate">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Position *</label>
+                        <select name="position_id" id="position_id" required>
+                            <option value="">Select Position</option>
+                            <?php foreach ($positions as $position): ?>
+                                <option value="<?php echo (int)$position['position_id']; ?>" data-scope="<?php echo htmlspecialchars($position['scope']); ?>">
+                                    <?php echo htmlspecialchars($position['position_name']); ?> (<?php echo htmlspecialchars($position['scope']); ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Candidate Name *</label>
+                        <input type="text" name="full_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Party Name *</label>
+                        <input type="text" name="party_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Candidate Photo *</label>
+                        <input type="file" name="candidate_photo" accept="image/jpeg,image/png,image/webp" required>
+                        <small class="footer-note" style="text-align:left; margin-top:2px;">Accepted: JPG, PNG, WEBP up to 5MB. Image is auto-cropped and resized for ballot view.</small>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" id="candidate-county-wrap" style="display:none;">
+                        <label>County</label>
+                        <select name="county_id" id="candidate_county_id">
+                            <option value="">Select County</option>
+                            <?php foreach ($counties as $county): ?>
+                                <option value="<?php echo (int)$county['county_id']; ?>"><?php echo htmlspecialchars($county['county_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group" id="candidate-constituency-wrap" style="display:none;">
+                        <label>Constituency</label>
+                        <select name="constituency_id" id="candidate_constituency_id">
+                            <option value="">Select County First</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="candidate-ward-wrap" style="display:none;">
+                        <label>Ward</label>
+                        <select name="ward_id" id="candidate_ward_id">
+                            <option value="">Select Constituency First</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Save Candidate</button>
+            </form>
+            <?php endif; ?>
+
+            <div style="margin-top: 20px;">
+                <h3 style="margin:0;">Configured Candidates</h3>
+                <div style="margin-top: 10px;">
+                    <a class="btn btn-secondary" href="admin_records.php?type=candidates">Search Configured Candidates</a>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <h3 style="margin:0;">All Registered Voters</h3>
+                <div style="margin-top: 10px;">
+                    <a class="btn btn-secondary" href="admin_records.php?type=voters">Search All Registered Voters</a>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <h3 style="margin:0;">Pending Verification</h3>
+                <div style="margin-top: 10px;">
+                    <a class="btn btn-secondary" href="admin_records.php?type=pending">Search Pending Verification</a>
+                </div>
+            </div>
+
+            <div class="page-info-footer">
+                <h4>Important Information</h4>
+                <p>Admins should verify voter identity carefully before approval and ensure election controls and candidate data are accurate.</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="assets/js/admin_verify_voters.js" defer></script>
+<script>
+window.__ROLE_HOME__ = 'admin_verify_voters.php';
+
+(function () {
+    // view-redirect-guard: ensure template previews route to the controller endpoint
+    var path = window.location.pathname || '';
+    var fromViewsTemplate = /\/views\/admin_verify_voters\.view\.html$/i.test(path);
+    var fromFilePreview = window.location.protocol === 'file:';
+
+    if (!fromViewsTemplate && !fromFilePreview) {
+        return;
+    }
+
+    var origin = window.location.origin && window.location.origin !== 'null'
+        ? window.location.origin
+        : 'http://127.0.0.1:8000';
+    var basePath = path.replace(/\/views\/[^/]+\.view\.html$/i, '');
+    window.location.href = origin + basePath + '/' + window.location.search;
+})();
+</script>
+</body>
+</html>
+
+
+
+
+

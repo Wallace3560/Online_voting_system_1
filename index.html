@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<!--
+  Overview: Index
+  Purpose: Defines the page structure and content for this view.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Voting System</title>
+    <link rel="stylesheet" href="assets/css/index.css">
+    <link rel="stylesheet" href="assets/css/global_menu.css">
+    <script src="assets/js/global_menu.js" defer></script>
+</head>
+<body>
+<div class="main-container">
+    <div class="card" style="max-width: 900px; margin: 0 auto;">
+        <div class="card-header">
+            <h2>Online Voting System</h2>
+            <p>Official starting page for voter and admin workflows.</p>
+        </div>
+        <div class="card-body">
+            <h3 style="margin-bottom: 8px;">1. Voter Access</h3>
+            <div class="form-row" style="margin-bottom: 12px;">
+                <a href="register.php" class="btn btn-primary">Register Voter</a>
+                <a href="login.php" class="btn btn-secondary">Voter Login</a>
+            </div>
+
+            <h3 style="margin-bottom: 8px;">2. Account Support</h3>
+            <div class="form-row" style="margin-bottom: 12px;">
+                <a href="check_verification.php" class="btn btn-primary">Check Verification Status</a>
+                <a href="resend_verification.php" class="btn btn-secondary">Resend Verification Email</a>
+            </div>
+
+            <h3 style="margin-bottom: 8px;">3. Administration & Results</h3>
+            <div class="form-row" style="margin-bottom: 12px;">
+                <a href="admin_login.php" class="btn btn-secondary">Admin Login</a>
+                <a href="results.php" class="btn btn-primary">View Election Results</a>
+            </div>
+
+            <div class="page-info-footer">
+                <h4>Important Information</h4>
+                <p>This is the official start page. New voters should register first, then verify email and wait for admin approval before login and voting.</p>
+            </div>
+
+            <p class="footer-note">Use the floating Menu button for full navigation from any page.</p>
+        </div>
+    </div>
+</div>
+</body>
+</html>

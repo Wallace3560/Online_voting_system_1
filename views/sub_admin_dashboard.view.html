@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<!--
+  Overview: Sub Admin Dashboard
+  Purpose: Defines the page structure and content for this view.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sub Admin Dashboard</title>
+    <link rel="stylesheet" href="assets/css/views/admin_verify_voters.css">
+    <link rel="stylesheet" href="assets/css/global_menu.css">
+    <script src="assets/js/global_menu.js" defer></script>
+</head>
+<body>
+<div class="main-container">
+    <div class="card" style="max-width: 1120px; margin: 0 auto;">
+        <div class="card-header">
+            <h2>Sub Admin Dashboard</h2>
+            <p>Limited access for assisted operations and manual vote intake.</p>
+            <p>Signed in as role: <strong><?php echo htmlspecialchars($admin_role ?? 'sub_admin'); ?></strong></p>
+        </div>
+        <div class="card-body">
+            <?php if ($error): ?>
+                <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+            <?php endif; ?>
+            <?php if ($message): ?>
+                <div class="alert alert-info"><?php echo htmlspecialchars($message); ?></div>
+            <?php endif; ?>
+
+            <div class="stats-grid">
+                <div class="stat-card"><p>Total Voters</p><strong><?php echo (int)($stats['total'] ?? 0); ?></strong></div>
+                <div class="stat-card"><p>Pending</p><strong><?php echo (int)($stats['pending'] ?? 0); ?></strong></div>
+                <div class="stat-card"><p>Verified</p><strong><?php echo (int)($stats['verified'] ?? 0); ?></strong></div>
+                <div class="stat-card"><p>Rejected</p><strong><?php echo (int)($stats['rejected'] ?? 0); ?></strong></div>
+            </div>
+
+            <h3 style="margin-top: 20px;">Allowed Operations</h3>
+            <div class="alert alert-info">Sub admins cannot perform sensitive actions such as opening/closing elections, publishing results, or archive reset. They can only submit manual vote batches for super-admin review.</div>
+
+            <h3 style="margin-top: 20px;">Manual Vote Intake</h3>
+            <form method="POST" action="sub_admin_dashboard.php" style="margin-bottom: 20px;">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                <input type="hidden" name="action" value="submit_manual_vote_batch">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Batch Title *</label>
+                        <input type="text" name="batch_title" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Position *</label>
+                        <select name="manual_position_id" required>
+                            <option value="">Select Position</option>
+                            <?php foreach ($positions as $position): ?>
+                                <option value="<?php echo (int)$position['position_id']; ?>"><?php echo htmlspecialchars($position['position_name']); ?> (<?php echo htmlspecialchars($position['scope']); ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Proposed Votes *</label>
+                        <input type="number" name="proposed_votes" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>County (optional)</label>
+                        <select name="manual_county_id">
+                            <option value="">Any County</option>
+                            <?php foreach ($counties as $county): ?>
+                                <option value="<?php echo (int)$county['county_id']; ?>"><?php echo htmlspecialchars($county['county_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Constituency (optional)</label>
+                        <select name="manual_constituency_id">
+                            <option value="">Any Constituency</option>
+                            <?php foreach (($all_constituencies ?? []) as $constituency): ?>
+                                <option value="<?php echo (int)$constituency['constituency_id']; ?>"><?php echo htmlspecialchars($constituency['constituency_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Ward (optional)</label>
+                        <select name="manual_ward_id">
+                            <option value="">Any Ward</option>
+                            <?php foreach (($all_wards ?? []) as $ward): ?>
+                                <option value="<?php echo (int)$ward['ward_id']; ?>"><?php echo htmlspecialchars($ward['ward_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Source Note *</label>
+                        <input type="text" name="source_note" required>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" type="submit">Submit Manual Vote Batch</button>
+            </form>
+
+            <h3 style="margin-top: 20px;">Pending Manual Batches</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Batch</th>
+                            <th>Position</th>
+                            <th>Proposed Votes</th>
+                            <th>Approvals</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php if (empty($pending_manual_batches)): ?>
+                        <tr><td colspan="5">No pending manual batches.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($pending_manual_batches as $batch): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($batch['batch_title'] ?? 'Manual Batch'); ?></td>
+                                <td><?php echo htmlspecialchars($batch['position_name'] ?? '-'); ?></td>
+                                <td><?php echo (int)($batch['proposed_votes'] ?? 0); ?></td>
+                                <td><?php echo (int)($batch['approvals_count'] ?? 0); ?> / 2</td>
+                                <td><?php echo strtoupper(htmlspecialchars($batch['status'] ?? 'pending')); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+window.__ROLE_HOME__ = 'sub_admin_dashboard.php';
+</script>
+</body>
+</html>

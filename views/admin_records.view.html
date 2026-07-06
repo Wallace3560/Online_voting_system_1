@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<!--
+  Overview: Admin Records
+  Purpose: Defines the page structure and content for this view.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Records</title>
+    <link rel="stylesheet" href="assets/css/views/admin_verify_voters.css">
+    <link rel="stylesheet" href="assets/css/global_menu.css">
+    <script src="assets/js/global_menu.js" defer></script>
+</head>
+<body>
+<div class="main-container">
+    <div class="card" style="max-width: 1200px; margin: 0 auto;">
+        <div class="card-header">
+            <h2><?php echo htmlspecialchars($title); ?></h2>
+            <p>Search and review records quickly from one page.</p>
+            <p>Signed in as role: <strong><?php echo htmlspecialchars($admin_role ?? 'super_admin'); ?></strong></p>
+        </div>
+        <div class="card-body">
+            <?php if (!empty($error)): ?>
+                <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+            <?php endif; ?>
+            <?php if (!empty($message)): ?>
+                <div class="alert alert-info"><?php echo htmlspecialchars($message); ?></div>
+            <?php endif; ?>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 12px;">
+                <a class="btn <?php echo ($type === 'voters') ? 'btn-primary' : 'btn-secondary'; ?>" href="admin_records.php?type=voters">All Registered Voters</a>
+                <a class="btn <?php echo ($type === 'candidates') ? 'btn-primary' : 'btn-secondary'; ?>" href="admin_records.php?type=candidates">Configured Candidates</a>
+                <a class="btn <?php echo ($type === 'pending') ? 'btn-primary' : 'btn-secondary'; ?>" href="admin_records.php?type=pending">Pending Verification</a>
+                <a class="btn btn-secondary" href="admin_verify_voters.php">Back to Dashboard</a>
+            </div>
+
+            <form method="GET" action="admin_records.php" style="margin-bottom: 14px;">
+                <input type="hidden" name="type" value="<?php echo htmlspecialchars($type); ?>">
+                <div class="form-group" style="max-width: 520px; margin:0;">
+                    <label>Search</label>
+                    <input type="text" name="q" value="<?php echo htmlspecialchars($query); ?>" placeholder="Type name, email, id, phone, party, position...">
+                </div>
+            </form>
+
+            <div class="alert alert-info">Showing <?php echo (int)count($rows); ?> record(s).</div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <?php if ($type === 'candidates'): ?>
+                        <tr>
+                            <th>Position</th>
+                            <th>Candidate</th>
+                            <th>Party</th>
+                            <th>Scope</th>
+                            <th>Status</th>
+                            <th>Manage</th>
+                        </tr>
+                    <?php elseif ($type === 'pending'): ?>
+                        <tr>
+                            <th>Name</th>
+                            <th>National ID</th>
+                            <th>ID Documents</th>
+                            <th>Email</th>
+                            <th>County</th>
+                            <th>Constituency</th>
+                            <th>Ward</th>
+                        </tr>
+                    <?php else: ?>
+                        <tr>
+                            <th>Name</th>
+                            <th>National ID</th>
+                            <th>ID Documents</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Status</th>
+                            <th>Verification</th>
+                            <th>Votes</th>
+                            <th>Manage</th>
+                        </tr>
+                    <?php endif; ?>
+                    </thead>
+                    <tbody>
+                    <?php if (empty($rows)): ?>
+                        <tr>
+                            <td colspan="8">No records found for your search.</td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($rows as $row): ?>
+                            <?php if ($type === 'candidates'): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($row['position_name'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['full_name'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['party_name'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['scope'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['status'] ?? '-'); ?></td>
+                                    <td>
+                                        <?php if (!empty($can_manage)): ?>
+                                            <?php $candidate_manage_id = 'manage-candidate-' . (int)($row['candidate_id'] ?? 0); ?>
+                                            <button type="button" class="btn btn-secondary open-manage-btn" data-target="<?php echo htmlspecialchars($candidate_manage_id); ?>">Manage</button>
+                                            <div id="<?php echo htmlspecialchars($candidate_manage_id); ?>" class="manage-inline-box" style="display:none; margin-top:8px; border:1px solid #d7dfd7; border-radius:8px; padding:8px; background:#f8fbf8;">
+                                                <form method="POST" action="admin_records.php?type=candidates<?php echo $query !== '' ? '&q=' . urlencode($query) : ''; ?>" style="display:grid; gap:6px; margin-bottom:8px;">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                                    <input type="hidden" name="action" value="update_candidate">
+                                                    <input type="hidden" name="candidate_id" value="<?php echo (int)($row['candidate_id'] ?? 0); ?>">
+                                                    <input type="hidden" name="position_id" value="<?php echo (int)($row['position_id'] ?? 0); ?>">
+                                                    <input type="hidden" name="county_id" value="<?php echo (int)($row['county_id'] ?? 0); ?>">
+                                                    <input type="hidden" name="constituency_id" value="<?php echo (int)($row['constituency_id'] ?? 0); ?>">
+                                                    <input type="hidden" name="ward_id" value="<?php echo (int)($row['ward_id'] ?? 0); ?>">
+                                                    <input type="text" name="full_name" value="<?php echo htmlspecialchars($row['full_name'] ?? ''); ?>" required>
+                                                    <input type="text" name="party_name" value="<?php echo htmlspecialchars($row['party_name'] ?? ''); ?>" required>
+                                                    <select name="status" required>
+                                                        <option value="active" <?php echo (($row['status'] ?? 'active') === 'active') ? 'selected' : ''; ?>>Active</option>
+                                                        <option value="inactive" <?php echo (($row['status'] ?? '') === 'inactive') ? 'selected' : ''; ?>>Inactive</option>
+                                                    </select>
+                                                    <label style="display:flex; align-items:center; gap:6px; font-size:0.82rem;">
+                                                        <input type="checkbox" name="force_apply_changes" value="1">
+                                                        Force Apply
+                                                    </label>
+                                                    <button class="btn btn-secondary" type="submit">Save</button>
+                                                </form>
+                                                <form method="POST" action="admin_records.php?type=candidates<?php echo $query !== '' ? '&q=' . urlencode($query) : ''; ?>" style="display:grid; gap:6px;">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                                    <input type="hidden" name="action" value="mark_candidate_deceased">
+                                                    <input type="hidden" name="candidate_id" value="<?php echo (int)($row['candidate_id'] ?? 0); ?>">
+                                                    <input type="text" name="deceased_reason" value="Candidate died while in office." required>
+                                                    <button class="btn btn-danger" type="submit">Mark Deceased</button>
+                                                </form>
+                                            </div>
+                                        <?php else: ?>
+                                            <span class="status-badge status-warning">Read-only role</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php elseif ($type === 'pending'): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($row['full_name'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['national_id'] ?? '-'); ?></td>
+                                    <td>
+                                        <?php if (!empty($row['national_id_front_path'])): ?>
+                                            <a href="<?php echo htmlspecialchars($row['national_id_front_path']); ?>" target="_blank" rel="noopener">Front</a>
+                                        <?php else: ?>
+                                            -
+                                        <?php endif; ?>
+                                        |
+                                        <?php if (!empty($row['national_id_back_path'])): ?>
+                                            <a href="<?php echo htmlspecialchars($row['national_id_back_path']); ?>" target="_blank" rel="noopener">Back</a>
+                                        <?php else: ?>
+                                            -
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?php echo htmlspecialchars($row['email'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['county_name'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['constituency_name'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['ward_name'] ?? '-'); ?></td>
+                                </tr>
+                            <?php else: ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($row['full_name'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['national_id'] ?? '-'); ?></td>
+                                    <td>
+                                        <?php if (!empty($row['national_id_front_path'])): ?>
+                                            <a href="<?php echo htmlspecialchars($row['national_id_front_path']); ?>" target="_blank" rel="noopener">Front</a>
+                                        <?php else: ?>
+                                            -
+                                        <?php endif; ?>
+                                        |
+                                        <?php if (!empty($row['national_id_back_path'])): ?>
+                                            <a href="<?php echo htmlspecialchars($row['national_id_back_path']); ?>" target="_blank" rel="noopener">Back</a>
+                                        <?php else: ?>
+                                            -
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?php echo htmlspecialchars($row['email'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['phone'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['status'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['verification_status'] ?? '-'); ?></td>
+                                    <td><?php echo (int)($row['votes_count'] ?? 0); ?></td>
+                                    <td>
+                                        <?php if (!empty($can_manage)): ?>
+                                            <?php $voter_manage_id = 'manage-voter-' . (int)($row['voter_id'] ?? 0); ?>
+                                            <button type="button" class="btn btn-secondary open-manage-btn" data-target="<?php echo htmlspecialchars($voter_manage_id); ?>">Manage</button>
+                                            <div id="<?php echo htmlspecialchars($voter_manage_id); ?>" class="manage-inline-box" style="display:none; margin-top:8px; border:1px solid #d7dfd7; border-radius:8px; padding:8px; background:#f8fbf8;">
+                                                <form method="POST" action="admin_records.php?type=voters<?php echo $query !== '' ? '&q=' . urlencode($query) : ''; ?>" style="display:grid; gap:6px; margin-bottom:8px;">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                                    <input type="hidden" name="action" value="update_voter">
+                                                    <input type="hidden" name="voter_id" value="<?php echo (int)($row['voter_id'] ?? 0); ?>">
+                                                    <input type="text" name="full_name" value="<?php echo htmlspecialchars($row['full_name'] ?? ''); ?>" required>
+                                                    <input type="email" name="email" value="<?php echo htmlspecialchars($row['email'] ?? ''); ?>" required>
+                                                    <input type="text" name="phone" value="<?php echo htmlspecialchars($row['phone'] ?? ''); ?>" required>
+                                                    <select name="status" required>
+                                                        <option value="active" <?php echo (($row['status'] ?? 'active') === 'active') ? 'selected' : ''; ?>>Active</option>
+                                                        <option value="inactive" <?php echo (($row['status'] ?? '') === 'inactive') ? 'selected' : ''; ?>>Inactive</option>
+                                                    </select>
+                                                    <button class="btn btn-secondary" type="submit">Save</button>
+                                                </form>
+                                                <form method="POST" action="admin_records.php?type=voters<?php echo $query !== '' ? '&q=' . urlencode($query) : ''; ?>" style="display:grid; gap:6px;">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                                    <input type="hidden" name="action" value="force_reject_voter">
+                                                    <input type="hidden" name="voter_id" value="<?php echo (int)($row['voter_id'] ?? 0); ?>">
+                                                    <input type="text" name="rejection_reason" value="<?php echo htmlspecialchars($row['rejection_reason'] ?? 'Rejected by admin after review.'); ?>" required>
+                                                    <button class="btn btn-danger" type="submit">Reject Voter</button>
+                                                </form>
+                                            </div>
+                                        <?php else: ?>
+                                            <span class="status-badge status-warning">Read-only role</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="page-info-footer">
+                <h4>Important Information</h4>
+                <p>Use the search box to quickly locate records by name, id, email, phone, party, or position.</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var path = window.location.pathname || '';
+    var fromViewsTemplate = /\/views\/admin_records\.view\.html$/i.test(path);
+    var fromFilePreview = window.location.protocol === 'file:';
+
+    if (!fromViewsTemplate && !fromFilePreview) {
+        return;
+    }
+
+    var origin = window.location.origin && window.location.origin !== 'null'
+        ? window.location.origin
+        : 'http://127.0.0.1:8000';
+    var basePath = path.replace(/\/views\/[^/]+\.view\.html$/i, '');
+    window.location.href = origin + basePath + '/admin_records.php' + window.location.search;
+})();
+
+(function () {
+    var dialog = document.createElement('dialog');
+    dialog.id = 'manage-dialog';
+    dialog.style.maxWidth = '720px';
+    dialog.style.width = '95vw';
+    dialog.innerHTML = ''
+        + '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px;">'
+        + '<h3 style="margin:0;">Manage Options</h3>'
+        + '<button type="button" class="btn btn-secondary" id="manage-dialog-close">Close</button>'
+        + '</div>'
+        + '<div id="manage-dialog-body"></div>';
+    document.body.appendChild(dialog);
+
+    var closeBtn = document.getElementById('manage-dialog-close');
+    var body = document.getElementById('manage-dialog-body');
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function () {
+            body.innerHTML = '';
+            dialog.close();
+        });
+    }
+
+    if (body) {
+        body.addEventListener('submit', function () {
+            dialog.close();
+            body.innerHTML = '';
+        });
+    }
+
+    document.querySelectorAll('.open-manage-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var targetId = btn.getAttribute('data-target') || '';
+            var inlineBox = targetId ? document.getElementById(targetId) : null;
+            if (!inlineBox) {
+                return;
+            }
+
+            inlineBox.style.display = 'none';
+
+            body.innerHTML = '';
+            var cloned = inlineBox.cloneNode(true);
+            cloned.style.display = 'block';
+            body.appendChild(cloned);
+
+            if (typeof dialog.showModal === 'function') {
+                dialog.showModal();
+            }
+        });
+    });
+})();
+</script>
+</body>
+</html>

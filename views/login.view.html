@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<!--
+  Overview: Login
+  Purpose: Defines the page structure and content for this view.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voter Login</title>
+    <link rel="stylesheet" href="assets/css/views/login.css">
+    <link rel="stylesheet" href="assets/css/global_menu.css">
+    <script src="assets/js/global_menu.js" defer></script>
+</head>
+<body>
+<div class="main-container">
+    <div class="card" style="max-width: 500px; margin: 0 auto;">
+        <div class="card-header">
+            <h2>Voter Login</h2>
+            <p>Enter your National ID or Email to continue</p>
+            <p style="font-size: 12px; margin-top: 5px;">Note: Only verified accounts can login</p>
+        </div>
+        <div class="card-body">
+            <?php if ($error): ?>
+                <div class="alert alert-danger"><?php echo $error; ?></div>
+            <?php endif; ?>
+            <?php if (!empty($message)): ?>
+                <div class="alert alert-success"><?php echo htmlspecialchars($message); ?></div>
+            <?php endif; ?>
+
+            <form method="POST" action="login.php">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                <div class="form-group">
+                    <label>National ID or Email</label>
+                    <input type="text" name="identifier" required placeholder="e.g., 12345678 or your@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" required>
+                </div>
+                <div style="text-align: right; margin-top: -4px; margin-bottom: 10px;">
+                    <a href="forgot_password.php">Forgot Password?</a>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Login</button>
+                <p class="footer-note" style="margin-top: 12px;">Use the Menu button for registration, password reset, and verification options.</p>
+            </form>
+
+            <div class="page-info-footer">
+                <h4>Important Information</h4>
+                <p>Only voters with verified email and admin approval can log in. Use your National ID or email with the correct password.</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    // view-redirect-guard: ensure template previews route to the controller endpoint
+    var path = window.location.pathname || '';
+    var fromViewsTemplate = /\/views\/login\.view\.html$/i.test(path);
+    var fromFilePreview = window.location.protocol === 'file:';
+
+    if (!fromViewsTemplate && !fromFilePreview) {
+        return;
+    }
+
+    var origin = window.location.origin && window.location.origin !== 'null'
+        ? window.location.origin
+        : 'http://127.0.0.1:8000';
+    var basePath = path.replace(/\/views\/login\.view\.html$/i, '');
+    window.location.href = origin + basePath + '/login.php' + window.location.search;
+})();
+</script>
+</body>
+</html>
+
+
+

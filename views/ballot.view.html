@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<!--
+  Overview: Ballot
+  Purpose: Defines the page structure and content for this view.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cast Your Vote</title>
+    <link rel="stylesheet" href="assets/css/views/ballot.css">
+    <link rel="stylesheet" href="assets/css/global_menu.css">
+    <script src="assets/js/global_menu.js" defer></script>
+</head>
+<body>
+<div class="main-container">
+    <div class="card" style="max-width: 1080px; margin: 0 auto;">
+        <div class="card-header">
+            <h2>Official Ballot</h2>
+            <p>Welcome, <?php echo htmlspecialchars($_SESSION['voter_name'] ?? 'Voter'); ?>. Select all required positions in order and submit once.</p>
+        </div>
+        <div class="card-body">
+            <?php if ($message): ?>
+                <div class="alert alert-success"><?php echo htmlspecialchars($message); ?></div>
+            <?php endif; ?>
+            <?php if ($error): ?>
+                <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+            <?php endif; ?>
+
+            <div class="stats-grid" style="margin-bottom: 14px;">
+                <div class="stat-card"><p>Election Status</p><strong><?php echo $election_open ? 'OPEN' : 'CLOSED'; ?></strong></div>
+                <div class="stat-card"><p>Positions Completed</p><strong><?php echo (int)$progress['completed']; ?></strong></div>
+                <div class="stat-card"><p>Total Positions</p><strong><?php echo (int)$progress['total']; ?></strong></div>
+                <div class="stat-card"><p>Your Ward</p><strong><?php echo htmlspecialchars((string)$voter['ward_id']); ?></strong></div>
+            </div>
+
+            <?php if (!$election_open): ?>
+                <div class="alert alert-info">Voting is currently closed by election administrators. You can still view live results.</div>
+            <?php endif; ?>
+
+            <?php if (!empty($is_finalized)): ?>
+                <div class="alert alert-success">Your ballot has already been submitted and locked. You can now only view results.</div>
+            <?php endif; ?>
+
+            <?php if (!empty($by_elections)): ?>
+                <h3 style="margin-top: 20px;">By-Elections For Your Area</h3>
+                <?php foreach ($by_elections as $by): ?>
+                    <div class="card" style="margin-bottom: 12px; border-radius: 12px;">
+                        <div class="card-body" style="padding: 16px;">
+                            <h3 style="margin-bottom: 6px;"><?php echo htmlspecialchars($by['election_title'] ?? 'By-Election'); ?></h3>
+                            <p class="footer-note" style="text-align: left; margin: 0 0 6px;">Position: <?php echo htmlspecialchars($by['position_name'] ?? ''); ?></p>
+                            <?php if (!empty($by['affected_candidate_name'])): ?>
+                                <p class="footer-note" style="text-align: left; margin: 0 0 6px;">Previous holder: <?php echo htmlspecialchars($by['affected_candidate_name']); ?></p>
+                            <?php endif; ?>
+                            <?php if (!empty($by['reason'])): ?>
+                                <p class="footer-note" style="text-align: left; margin: 0 0 10px;">Reason: <?php echo htmlspecialchars($by['reason']); ?></p>
+                            <?php endif; ?>
+
+                            <?php if (empty($by['candidates'])): ?>
+                                <div class="alert alert-info">No candidates have been added for this by-election yet.</div>
+                            <?php elseif (!empty($by['selected_candidate_id'])): ?>
+                                <div class="alert alert-success">You already voted in this by-election.</div>
+                            <?php else: ?>
+                                <form method="POST" action="ballot.php">
+                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                    <input type="hidden" name="action" value="submit_by_election_vote">
+                                    <input type="hidden" name="by_election_id" value="<?php echo (int)$by['by_election_id']; ?>">
+                                    <div class="table-wrap">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Select</th>
+                                                    <th>Candidate</th>
+                                                    <th>Party</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                            <?php foreach ($by['candidates'] as $candidate): ?>
+                                                <tr>
+                                                    <td>
+                                                        <input
+                                                            type="radio"
+                                                            name="by_election_candidate_id"
+                                                            value="<?php echo (int)$candidate['by_election_candidate_id']; ?>"
+                                                            required
+                                                        >
+                                                    </td>
+                                                    <td>
+                                                        <div class="ballot-candidate-cell">
+                                                            <?php if (!empty($candidate['candidate_photo'])): ?>
+                                                                <img src="<?php echo htmlspecialchars($candidate['candidate_photo']); ?>" alt="<?php echo htmlspecialchars($candidate['full_name']); ?>" class="ballot-candidate-photo">
+                                                            <?php else: ?>
+                                                                <div class="ballot-candidate-photo placeholder">
+                                                                    <?php echo htmlspecialchars(strtoupper(substr($candidate['full_name'], 0, 1))); ?>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                            <span class="ballot-candidate-name"><?php echo htmlspecialchars($candidate['full_name']); ?></span>
+                                                        </div>
+                                                    </td>
+                                                    <td><?php echo htmlspecialchars($candidate['party_name']); ?></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <button type="submit" class="btn btn-secondary" style="margin-top:10px;">Submit By-Election Vote</button>
+                                </form>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+
+            <?php if (empty($ballot)): ?>
+                <div class="alert alert-info">No ballot positions are configured for your voting area yet.</div>
+            <?php else: ?>
+                <?php if (!empty($step_tracker)): ?>
+                    <div class="ballot-steps" aria-label="Ballot steps in required order">
+                        <div class="ballot-steps-header">
+                            <strong>Ballot Steps</strong>
+                            <span><?php echo (int)$progress['completed']; ?> of <?php echo (int)$step_total; ?> selected</span>
+                        </div>
+                        <ol class="ballot-steps-list">
+                            <?php foreach ($step_tracker as $step_index => $step): ?>
+                                <li class="ballot-step-item ballot-step-<?php echo htmlspecialchars($step['state']); ?>">
+                                    <span class="ballot-step-index"><?php echo (int)($step_index + 1); ?></span>
+                                    <span class="ballot-step-label"><?php echo htmlspecialchars($step['position_name']); ?></span>
+                                </li>
+                            <?php endforeach; ?>
+                        </ol>
+                    </div>
+                <?php endif; ?>
+
+                <form method="POST" action="ballot.php">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                    <input type="hidden" name="action" value="submit_ballot">
+                <?php foreach ($ballot as $position): ?>
+                    <?php $position_id = (int)$position['position_id']; ?>
+                    <?php $step_number = isset($step_numbers[$position_id]) ? (int)$step_numbers[$position_id] : 0; ?>
+                    <div class="card ballot-step-card" style="margin-bottom: 12px; border-radius: 12px;" data-position-id="<?php echo $position_id; ?>" data-step-number="<?php echo $step_number; ?>">
+                        <div class="card-body" style="padding: 16px;">
+                            <h3 style="margin-bottom: 6px;"><?php echo htmlspecialchars($position['position_name']); ?></h3>
+                            <?php if ($step_number > 0): ?>
+                                <p class="ballot-step-caption">Step <?php echo $step_number; ?> of <?php echo (int)$step_total; ?></p>
+                            <?php endif; ?>
+                            <p class="footer-note" style="text-align: left; margin-top: 0; margin-bottom: 10px;">Scope: <?php echo htmlspecialchars(ucfirst($position['scope'])); ?></p>
+
+                            <?php if (empty($position['candidates'])): ?>
+                                <div class="alert alert-info">No candidates configured for this position.</div>
+                            <?php else: ?>
+                                <p class="ballot-locked-note">Complete the previous step first to unlock this step.</p>
+                                <div class="table-wrap">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Select</th>
+                                                <th>Candidate</th>
+                                                <th>Party</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                        <?php foreach ($position['candidates'] as $candidate): ?>
+                                            <?php $candidate_id = (int)$candidate['candidate_id']; ?>
+                                            <?php $is_checked = ((int)($position['selected_candidate_id'] ?? 0) === $candidate_id); ?>
+                                            <tr>
+                                                <td>
+                                                    <input
+                                                        type="radio"
+                                                        name="votes[<?php echo (int)$position['position_id']; ?>]"
+                                                        value="<?php echo $candidate_id; ?>"
+                                                        <?php echo $is_checked ? 'checked' : ''; ?>
+                                                        <?php echo (!empty($is_finalized) || !empty($position['selected_candidate_id'])) ? 'disabled' : ''; ?>
+                                                        <?php echo (empty($position['selected_candidate_id']) && empty($is_finalized)) ? 'required' : ''; ?>
+                                                    >
+                                                </td>
+                                                <td>
+                                                    <div class="ballot-candidate-cell">
+                                                        <?php if (!empty($candidate['candidate_photo'])): ?>
+                                                            <img src="<?php echo htmlspecialchars($candidate['candidate_photo']); ?>" alt="<?php echo htmlspecialchars($candidate['full_name']); ?>" class="ballot-candidate-photo">
+                                                        <?php else: ?>
+                                                            <div class="ballot-candidate-photo placeholder">
+                                                                <?php echo htmlspecialchars(strtoupper(substr($candidate['full_name'], 0, 1))); ?>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        <span class="ballot-candidate-name"><?php echo htmlspecialchars($candidate['full_name']); ?></span>
+                                                    </div>
+                                                </td>
+                                                <td><?php echo htmlspecialchars($candidate['party_name']); ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+
+                <?php if ($election_open && empty($is_finalized)): ?>
+                    <button type="submit" class="btn btn-primary btn-block" style="margin-top: 10px;">Submit All Votes and Finalize Ballot</button>
+                <?php endif; ?>
+                </form>
+            <?php endif; ?>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px;">
+                <a href="voter_logout.php" class="btn btn-danger">Logout</a>
+            </div>
+
+            <div class="page-info-footer">
+                <h4>Important Information</h4>
+                <p>Review your selection before submitting. Once a vote is finalized, this account cannot cast another vote.</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    // view-redirect-guard: ensure template previews route to the controller endpoint
+    var path = window.location.pathname || '';
+    var fromViewsTemplate = /\/views\/ballot\.view\.html$/i.test(path);
+    var fromFilePreview = window.location.protocol === 'file:';
+
+    if (!fromViewsTemplate && !fromFilePreview) {
+        return;
+    }
+
+    var origin = window.location.origin && window.location.origin !== 'null'
+        ? window.location.origin
+        : 'http://127.0.0.1:8000';
+    var basePath = path.replace(/\/views\/[^/]+\.view\.html$/i, '');
+    window.location.href = origin + basePath + '/' + window.location.search;
+})();
+
+(function () {
+    var ballotForm = document.querySelector('form[action="ballot.php"]');
+    if (!ballotForm) {
+        return;
+    }
+
+    function getStepCards() {
+        return Array.prototype.slice.call(document.querySelectorAll('.ballot-step-card[data-step-number]'))
+            .filter(function (card) {
+                return parseInt(card.getAttribute('data-step-number') || '0', 10) > 0;
+            })
+            .sort(function (a, b) {
+                return parseInt(a.getAttribute('data-step-number') || '0', 10) - parseInt(b.getAttribute('data-step-number') || '0', 10);
+            });
+    }
+
+    function hasSelection(card) {
+        return !!card.querySelector('input[type="radio"]:checked');
+    }
+
+    function setCardLockedState(card, locked) {
+        if (locked) {
+            card.classList.add('ballot-step-locked');
+        } else {
+            card.classList.remove('ballot-step-locked');
+        }
+    }
+
+    function setCardInputsEnabled(card, enabled) {
+        var radios = card.querySelectorAll('input[type="radio"]');
+        for (var i = 0; i < radios.length; i++) {
+            if (radios[i].hasAttribute('data-hard-disabled')) {
+                radios[i].disabled = true;
+                continue;
+            }
+            radios[i].disabled = !enabled;
+        }
+    }
+
+    function applySequentialLocking() {
+        var cards = getStepCards();
+        var previousComplete = true;
+
+        for (var i = 0; i < cards.length; i++) {
+            var card = cards[i];
+            var cardComplete = hasSelection(card);
+            var enableThisCard = previousComplete;
+
+            setCardInputsEnabled(card, enableThisCard);
+            setCardLockedState(card, !enableThisCard);
+
+            previousComplete = previousComplete && cardComplete;
+        }
+    }
+
+    function focusStep(card) {
+        if (!card) {
+            return;
+        }
+
+        card.classList.add('ballot-step-focus');
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        window.setTimeout(function () {
+            card.classList.remove('ballot-step-focus');
+        }, 1100);
+    }
+
+    ballotForm.addEventListener('change', function (event) {
+        var target = event.target;
+        if (!target || target.type !== 'radio') {
+            return;
+        }
+
+        applySequentialLocking();
+
+        var cards = getStepCards();
+        var nextPending = null;
+
+        for (var i = 0; i < cards.length; i++) {
+            if (!hasSelection(cards[i])) {
+                nextPending = cards[i];
+                break;
+            }
+        }
+
+        if (nextPending) {
+            focusStep(nextPending);
+        }
+    });
+
+    var hardDisabledInputs = ballotForm.querySelectorAll('input[type="radio"][disabled]');
+    for (var i = 0; i < hardDisabledInputs.length; i++) {
+        hardDisabledInputs[i].setAttribute('data-hard-disabled', '1');
+    }
+
+    applySequentialLocking();
+})();
+</script>
+</body>
+</html>
+
+
+
+
+

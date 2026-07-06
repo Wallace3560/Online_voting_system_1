@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<!--
+  Overview: Admin Login
+  Purpose: Defines the page structure and content for this view.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login</title>
+    <link rel="stylesheet" href="assets/css/views/admin_login.css">
+    <link rel="stylesheet" href="assets/css/global_menu.css">
+    <script src="assets/js/global_menu.js" defer></script>
+</head>
+<body>
+<div class="main-container">
+    <div class="card" style="max-width: 520px; margin: 0 auto;">
+        <div class="card-header">
+            <h2>Admin Login</h2>
+            <p>Authorized election officers only.</p>
+        </div>
+        <div class="card-body">
+            <?php if ($error): ?>
+                <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+            <?php endif; ?>
+            <?php if (!empty($message)): ?>
+                <div class="alert alert-success"><?php echo htmlspecialchars($message); ?></div>
+            <?php endif; ?>
+
+            <?php if (($step ?? 'login') === 'setup'): ?>
+                <div class="alert alert-info">
+                    MFA setup is required for admin account security. Scan the QR code in your authenticator app, then enter the 6-digit code.
+                </div>
+                <div style="text-align:center; margin: 10px 0 14px;">
+                    <?php if (!empty($mfa_qr_url)): ?>
+                        <img src="<?php echo htmlspecialchars($mfa_qr_url); ?>" alt="MFA QR Code" style="width:220px; height:220px; border:1px solid #d7dfd7; border-radius:10px; padding:8px; background:#fff;">
+                    <?php endif; ?>
+                    <p class="footer-note" style="margin-top:8px;">Setup for: <strong><?php echo htmlspecialchars($pending_admin_name ?? 'Admin'); ?></strong></p>
+                    <p class="footer-note" style="margin-top:2px;">Secret Key: <strong><?php echo htmlspecialchars($mfa_secret ?? ''); ?></strong></p>
+                </div>
+                <form method="POST" action="admin_login.php?step=setup">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                    <input type="hidden" name="action" value="setup_mfa_confirm">
+                    <div class="form-group">
+                        <label>Authenticator Code</label>
+                        <input type="text" name="mfa_code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required placeholder="Enter 6-digit code">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Complete MFA Setup</button>
+                </form>
+            <?php elseif (($step ?? 'login') === 'mfa'): ?>
+                <div class="alert alert-info">Enter the 6-digit code from your authenticator app to complete admin login.</div>
+                <div style="text-align:center; margin: 10px 0 14px;">
+                    <?php if (!empty($mfa_qr_url)): ?>
+                        <img src="<?php echo htmlspecialchars($mfa_qr_url); ?>" alt="MFA QR Code" style="width:220px; height:220px; border:1px solid #d7dfd7; border-radius:10px; padding:8px; background:#fff;">
+                    <?php endif; ?>
+                    <p class="footer-note" style="margin-top:8px;">Scan with your authenticator app, then enter the 6-digit code below.</p>
+                </div>
+                <form method="POST" action="admin_login.php?step=mfa">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                    <input type="hidden" name="action" value="verify_mfa">
+                    <div class="form-group">
+                        <label>Authenticator Code</label>
+                        <input type="text" name="mfa_code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required placeholder="Enter 6-digit code">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Verify and Login</button>
+                </form>
+            <?php else: ?>
+                <form method="POST" action="admin_login.php">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                    <input type="hidden" name="action" value="admin_login_submit">
+                    <div class="form-group">
+                        <label>Admin Email</label>
+                        <input type="email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" name="password" required>
+                    </div>
+                    <div style="text-align: right; margin-top: -4px; margin-bottom: 10px;">
+                        <a href="admin_forgot_password.php">Forgot Password?</a>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Login as Admin</button>
+                </form>
+            <?php endif; ?>
+
+            <p class="footer-note">Default bootstrap admin email: admin254@gmail.com</p>
+
+            <div class="page-info-footer">
+                <h4>Important Information</h4>
+                <p>Admin access is restricted. MFA setup/verification is required for account security before dashboard access.</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    // view-redirect-guard: ensure template previews route to the controller endpoint
+    var path = window.location.pathname || '';
+    var fromViewsTemplate = /\/views\/admin_login\.view\.html$/i.test(path);
+    var fromFilePreview = window.location.protocol === 'file:';
+
+    if (!fromViewsTemplate && !fromFilePreview) {
+        return;
+    }
+
+    var origin = window.location.origin && window.location.origin !== 'null'
+        ? window.location.origin
+        : 'http://127.0.0.1:8000';
+    var basePath = path.replace(/\/views\/[^/]+\.view\.html$/i, '');
+    window.location.href = origin + basePath + '/' + window.location.search;
+})();
+</script>
+</body>
+</html>
+
+
+
+
+

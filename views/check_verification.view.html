@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<!--
+  Overview: Check Verification
+  Purpose: Defines the page structure and content for this view.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check Verification Status</title>
+    <link rel="stylesheet" href="assets/css/views/check_verification.css">
+    <link rel="stylesheet" href="assets/css/global_menu.css">
+    <script src="assets/js/global_menu.js" defer></script>
+</head>
+<body>
+<div class="main-container">
+    <div class="card" style="max-width: 700px; margin: 0 auto;">
+        <div class="card-header">
+            <h2>Check Verification Status</h2>
+            <p>Enter your National ID or Email to check your verification status</p>
+        </div>
+        <div class="card-body">
+            <?php if ($error): ?>
+                <div class="alert alert-danger"><?php echo $error; ?></div>
+            <?php endif; ?>
+
+            <form method="POST" action="check_verification.php">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                <div class="form-group">
+                    <label>National ID or Email</label>
+                    <input type="text" name="identifier" required placeholder="e.g., 12345678 or your@email.com">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Check Status</button>
+            </form>
+
+            <?php if ($status_info): ?>
+                <div style="margin-top: 20px; padding: 16px; background: var(--surface-muted); border-radius: 10px;">
+                    <h3 style="margin-bottom: 15px;">Verification Status for <?php echo htmlspecialchars($status_info['full_name']); ?></h3>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>National ID:</label>
+                            <p><strong><?php echo htmlspecialchars($status_info['national_id']); ?></strong></p>
+                        </div>
+                        <div class="form-group">
+                            <label>Email:</label>
+                            <p><strong><?php echo htmlspecialchars($status_info['email']); ?></strong></p>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Email Verification:</label>
+                            <p>
+                                <?php if ((int)$status_info['email_verified'] === 1): ?>
+                                    <span class="status-badge status-active">Email Verified</span>
+                                <?php else: ?>
+                                    <span class="status-badge status-inactive">Email Not Verified</span>
+                                <?php endif; ?>
+                            </p>
+                        </div>
+                        <div class="form-group">
+                            <label>Admin Verification:</label>
+                            <p>
+                                <?php if ((int)$status_info['admin_verified'] === 1): ?>
+                                    <span class="status-badge status-active">Admin Approved</span>
+                                <?php elseif ($status_info['verification_status'] === 'rejected'): ?>
+                                    <span class="status-badge status-inactive">Application Rejected</span>
+                                <?php else: ?>
+                                    <span class="status-badge status-warning">Pending Admin Approval</span>
+                                <?php endif; ?>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Overall Status:</label>
+                        <p>
+                            <?php if ($status_info['verification_status'] === 'verified'): ?>
+                                <span class="status-badge status-active">VERIFIED - You can login and vote</span>
+                            <?php elseif ($status_info['verification_status'] === 'rejected'): ?>
+                                <span class="status-badge status-invalid">REJECTED - <?php echo htmlspecialchars($status_info['rejection_reason'] ?? 'No reason provided'); ?></span>
+                            <?php elseif ((int)$status_info['email_verified'] === 0): ?>
+                                <span class="status-badge status-warning">PENDING - Please verify your email</span>
+                            <?php else: ?>
+                                <span class="status-badge status-warning">PENDING - Awaiting admin approval</span>
+                            <?php endif; ?>
+                        </p>
+                    </div>
+
+                    <?php if ($status_info['verification_status'] === 'verified'): ?>
+                        <a href="login.php" class="btn btn-primary">Proceed to Login</a>
+                    <?php elseif ((int)$status_info['email_verified'] === 0 && $status_info['verification_status'] !== 'rejected'): ?>
+                        <div class="alert alert-info">
+                            Please check your email for the verification link.
+                            <a href="resend_verification.php">Resend verification email</a>
+                        </div>
+                    <?php elseif ($status_info['verification_status'] === 'pending'): ?>
+                        <div class="alert alert-info">Your application is pending admin review.</div>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
+            <div class="page-info-footer">
+                <h4>Important Information</h4>
+                <p>Verification requires both email confirmation and admin approval. If email is pending, resend verification and check again.</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    // view-redirect-guard: ensure template previews route to the controller endpoint
+    var path = window.location.pathname || '';
+    var fromViewsTemplate = /\/views\/check_verification\.view\.html$/i.test(path);
+    var fromFilePreview = window.location.protocol === 'file:';
+
+    if (!fromViewsTemplate && !fromFilePreview) {
+        return;
+    }
+
+    var origin = window.location.origin && window.location.origin !== 'null'
+        ? window.location.origin
+        : 'http://127.0.0.1:8000';
+    var basePath = path.replace(/\/views\/[^/]+\.view\.html$/i, '');
+    window.location.href = origin + basePath + '/' + window.location.search;
+})();
+</script>
+</body>
+</html>
+
+
+
+
+

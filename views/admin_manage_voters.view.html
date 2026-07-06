@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<!--
+  Overview: Admin Manage Voters
+  Purpose: Defines the page structure and content for this view.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Manage Voters</title>
+    <link rel="stylesheet" href="assets/css/views/admin_verify_voters.css">
+    <link rel="stylesheet" href="assets/css/global_menu.css">
+    <script src="assets/js/global_menu.js" defer></script>
+</head>
+<body>
+<div class="main-container">
+    <div class="card" style="max-width: 1240px; margin: 0 auto;">
+        <div class="card-header">
+            <h2>Manage Registered Voters</h2>
+            <p>Edit voter records and reject voters from a dedicated management page.</p>
+            <p>Signed in as role: <strong><?php echo htmlspecialchars($admin_role ?? 'super_admin'); ?></strong></p>
+        </div>
+        <div class="card-body">
+            <?php if ($error): ?>
+                <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+            <?php endif; ?>
+            <?php if ($message): ?>
+                <div class="alert alert-info"><?php echo htmlspecialchars($message); ?></div>
+            <?php endif; ?>
+
+            <?php if (empty($can_manage)): ?>
+                <div class="alert alert-info">Your role has read-only access. Management actions are disabled.</div>
+            <?php endif; ?>
+
+            <h3 style="margin-top: 10px;">User Requests To Change Details</h3>
+            <div class="table-wrap" style="margin-bottom: 20px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Request Date</th>
+                            <th>Voter</th>
+                            <th>Reason</th>
+                            <th>Requested Details</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php if (empty($pending_profile_requests)): ?>
+                        <tr><td colspan="5">No pending profile change requests.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($pending_profile_requests as $request): ?>
+                            <?php $requested = $request['requested_data_parsed'] ?? []; ?>
+                            <?php $request_manage_id = 'manage-request-' . (int)$request['request_id']; ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($request['created_at'] ?? ''); ?></td>
+                                <td>
+                                    <div><strong><?php echo htmlspecialchars($request['voter_name'] ?? ''); ?></strong></div>
+                                    <div>ID: <?php echo htmlspecialchars($request['national_id'] ?? ''); ?></div>
+                                </td>
+                                <td><?php echo htmlspecialchars($request['reason'] ?? ''); ?></td>
+                                <td>
+                                    <div><strong>Name:</strong> <?php echo htmlspecialchars($requested['full_name'] ?? '-'); ?></div>
+                                    <div><strong>Email:</strong> <?php echo htmlspecialchars($requested['email'] ?? '-'); ?></div>
+                                    <div><strong>Phone:</strong> <?php echo htmlspecialchars($requested['phone'] ?? '-'); ?></div>
+                                    <div><strong>DOB:</strong> <?php echo htmlspecialchars($requested['date_of_birth'] ?? '-'); ?></div>
+                                    <div><strong>County ID:</strong> <?php echo htmlspecialchars((string)($requested['county_id'] ?? '-')); ?></div>
+                                    <div><strong>Constituency ID:</strong> <?php echo htmlspecialchars((string)($requested['constituency_id'] ?? '-')); ?></div>
+                                    <div><strong>Ward ID:</strong> <?php echo htmlspecialchars((string)($requested['ward_id'] ?? '-')); ?></div>
+                                </td>
+                                <td>
+                                    <?php if (!empty($can_manage)): ?>
+                                    <button type="button" class="btn btn-secondary open-manage-btn" data-target="<?php echo htmlspecialchars($request_manage_id); ?>">Manage</button>
+                                    <div id="<?php echo htmlspecialchars($request_manage_id); ?>" class="manage-inline-box" style="display:none;">
+                                        <form method="POST" action="admin_manage_voters.php" style="display:grid; gap:6px; margin-bottom:8px;">
+                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                            <input type="hidden" name="action" value="approve_profile_change">
+                                            <input type="hidden" name="request_id" value="<?php echo (int)$request['request_id']; ?>">
+                                            <input type="text" name="decision_note" placeholder="Approval note" value="Approved by admin">
+                                            <button class="btn btn-secondary" type="submit">Save Approval</button>
+                                        </form>
+                                        <form method="POST" action="admin_manage_voters.php" style="display:grid; gap:6px;">
+                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                            <input type="hidden" name="action" value="reject_profile_change">
+                                            <input type="hidden" name="request_id" value="<?php echo (int)$request['request_id']; ?>">
+                                            <input type="text" name="decision_note" placeholder="Rejection reason" value="Rejected by admin">
+                                            <button class="btn btn-danger" type="submit">Reject Request</button>
+                                        </form>
+                                    </div>
+                                    <?php else: ?>
+                                    <span class="status-badge status-warning">Read-only role</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-wrap" style="margin-bottom: 20px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>National ID</th>
+                            <th>ID Documents</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>County</th>
+                            <th>Constituency</th>
+                            <th>Ward</th>
+                            <th>Status</th>
+                            <th>Verification</th>
+                            <th>Votes</th>
+                            <th>Manage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php if (empty($all_voters)): ?>
+                        <tr><td colspan="12">No voter records found.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($all_voters as $voter): ?>
+                            <?php $voter_manage_id = 'manage-voter-' . (int)$voter['voter_id']; ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($voter['full_name']); ?></td>
+                                <td><?php echo htmlspecialchars($voter['national_id']); ?></td>
+                                <td>
+                                    <?php if (!empty($voter['national_id_front_path'])): ?>
+                                        <a href="<?php echo htmlspecialchars($voter['national_id_front_path']); ?>" target="_blank" rel="noopener">Front</a>
+                                    <?php else: ?>
+                                        -
+                                    <?php endif; ?>
+                                    |
+                                    <?php if (!empty($voter['national_id_back_path'])): ?>
+                                        <a href="<?php echo htmlspecialchars($voter['national_id_back_path']); ?>" target="_blank" rel="noopener">Back</a>
+                                    <?php else: ?>
+                                        -
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo htmlspecialchars($voter['email']); ?></td>
+                                <td><?php echo htmlspecialchars($voter['phone']); ?></td>
+                                <td><?php echo htmlspecialchars($voter['county_name'] ?? '-'); ?></td>
+                                <td><?php echo htmlspecialchars($voter['constituency_name'] ?? '-'); ?></td>
+                                <td><?php echo htmlspecialchars($voter['ward_name'] ?? '-'); ?></td>
+                                <td><?php echo htmlspecialchars($voter['status']); ?></td>
+                                <td><?php echo htmlspecialchars($voter['verification_status']); ?></td>
+                                <td><?php echo (int)($voter['votes_count'] ?? 0); ?></td>
+                                <td>
+                                    <?php if (!empty($can_manage)): ?>
+                                    <button type="button" class="btn btn-secondary open-manage-btn" data-target="<?php echo htmlspecialchars($voter_manage_id); ?>">Manage</button>
+                                    <div id="<?php echo htmlspecialchars($voter_manage_id); ?>" class="manage-inline-box" style="display:none;">
+                                        <form method="POST" action="admin_manage_voters.php" style="display:grid; gap:6px; margin-bottom:8px;">
+                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                            <input type="hidden" name="action" value="update_voter">
+                                            <input type="hidden" name="voter_id" value="<?php echo (int)$voter['voter_id']; ?>">
+                                            <input type="text" name="full_name" value="<?php echo htmlspecialchars($voter['full_name']); ?>" placeholder="Full name" required>
+                                            <input type="email" name="email" value="<?php echo htmlspecialchars($voter['email']); ?>" placeholder="Email" required>
+                                            <input type="text" name="phone" value="<?php echo htmlspecialchars($voter['phone']); ?>" placeholder="Phone" required>
+                                            <select name="status" required>
+                                                <option value="active" <?php echo (($voter['status'] ?? 'active') === 'active') ? 'selected' : ''; ?>>Active</option>
+                                                <option value="inactive" <?php echo (($voter['status'] ?? '') === 'inactive') ? 'selected' : ''; ?>>Inactive</option>
+                                            </select>
+                                            <button class="btn btn-secondary" type="submit">Save</button>
+                                        </form>
+                                        <form method="POST" action="admin_manage_voters.php" style="display:grid; gap:6px;">
+                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                            <input type="hidden" name="action" value="force_reject_voter">
+                                            <input type="hidden" name="voter_id" value="<?php echo (int)$voter['voter_id']; ?>">
+                                            <input type="text" name="rejection_reason" placeholder="Rejection reason" value="<?php echo htmlspecialchars($voter['rejection_reason'] ?? ''); ?>">
+                                            <button class="btn btn-danger" type="submit">Reject Voter</button>
+                                        </form>
+                                    </div>
+                                    <?php else: ?>
+                                    <span class="status-badge status-warning">Read-only role</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 style="margin-top: 20px;">Profile Change Request History</h3>
+            <div class="table-wrap" style="margin-bottom: 20px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Voter</th>
+                            <th>Status</th>
+                            <th>Email Notifications</th>
+                            <th>Admin</th>
+                            <th>Admin Note</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php if (empty($profile_request_history)): ?>
+                        <tr><td colspan="6">No profile request history yet.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($profile_request_history as $request): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($request['created_at'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($request['voter_name'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($request['status'] ?? ''); ?></td>
+                                <td>
+                                    <div>
+                                        Admin:
+                                        <?php if ((int)($request['admin_notification_sent'] ?? 0) === 1): ?>
+                                            <span class="status-badge status-active">Sent</span>
+                                        <?php else: ?>
+                                            <span class="status-badge status-inactive">Not Sent</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div style="margin-top:4px;">
+                                        Voter:
+                                        <?php if (($request['status'] ?? '') === 'pending'): ?>
+                                            <span class="status-badge status-warning">Awaiting Decision</span>
+                                        <?php elseif ((int)($request['voter_notification_sent'] ?? 0) === 1): ?>
+                                            <span class="status-badge status-active">Sent</span>
+                                        <?php else: ?>
+                                            <span class="status-badge status-inactive">Not Sent</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                                <td><?php echo htmlspecialchars($request['reviewed_by_name'] ?? '-'); ?></td>
+                                <td><?php echo htmlspecialchars($request['decision_note'] ?? '-'); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="page-info-footer">
+                <h4>Important Information</h4>
+                <p>Approve profile changes only after review. Approved updates are applied to voter records and previous data is archived.</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var dialog = document.createElement('dialog');
+    dialog.id = 'manage-dialog';
+    dialog.style.maxWidth = '760px';
+    dialog.style.width = '95vw';
+    dialog.innerHTML = ''
+        + '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px;">'
+        + '<h3 style="margin:0; border:0; padding:0;">Manage Options</h3>'
+        + '<button type="button" class="btn btn-secondary" id="manage-dialog-close">Close</button>'
+        + '</div>'
+        + '<div id="manage-dialog-body"></div>';
+    document.body.appendChild(dialog);
+
+    var closeBtn = document.getElementById('manage-dialog-close');
+    var body = document.getElementById('manage-dialog-body');
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function () {
+            if (body) {
+                body.innerHTML = '';
+            }
+            dialog.close();
+        });
+    }
+
+    if (body) {
+        body.addEventListener('submit', function () {
+            dialog.close();
+            body.innerHTML = '';
+        });
+    }
+
+    document.querySelectorAll('.open-manage-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var targetId = btn.getAttribute('data-target') || '';
+            var inlineBox = targetId ? document.getElementById(targetId) : null;
+            if (!inlineBox || !body) {
+                return;
+            }
+
+            inlineBox.style.display = 'none';
+            body.innerHTML = '';
+
+            var cloned = inlineBox.cloneNode(true);
+            cloned.style.display = 'block';
+            body.appendChild(cloned);
+
+            if (typeof dialog.showModal === 'function') {
+                dialog.showModal();
+            }
+        });
+    });
+})();
+
+(function () {
+    var path = window.location.pathname || '';
+    var fromViewsTemplate = /\/views\/admin_manage_voters\.view\.html$/i.test(path);
+    var fromFilePreview = window.location.protocol === 'file:';
+
+    if (!fromViewsTemplate && !fromFilePreview) {
+        return;
+    }
+
+    var origin = window.location.origin && window.location.origin !== 'null'
+        ? window.location.origin
+        : 'http://127.0.0.1:8000';
+    var basePath = path.replace(/\/views\/[^/]+\.view\.html$/i, '');
+    window.location.href = origin + basePath + '/admin_manage_voters.php' + window.location.search;
+})();
+</script>
+</body>
+</html>

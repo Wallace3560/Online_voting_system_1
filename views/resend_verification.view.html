@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<!--
+  Overview: Resend Verification
+  Purpose: Defines the page structure and content for this view.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resend Verification Email</title>
+    <link rel="stylesheet" href="assets/css/views/resend_verification.css">
+    <link rel="stylesheet" href="assets/css/global_menu.css">
+    <script src="assets/js/global_menu.js" defer></script>
+</head>
+<body>
+<div class="main-container">
+    <div class="card" style="max-width: 560px; margin: 0 auto;">
+        <div class="card-header">
+            <h2>Resend Verification Email</h2>
+        </div>
+        <div class="card-body">
+            <?php if ($error): ?>
+                <div class="alert alert-danger"><?php echo $error; ?></div>
+            <?php endif; ?>
+            <?php if ($message): ?>
+                <div class="alert alert-success"><?php echo $message; ?></div>
+            <?php endif; ?>
+
+            <form method="POST" action="resend_verification.php" style="margin-bottom: 14px;">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" name="email" value="<?php echo htmlspecialchars($email); ?>" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Resend Email</button>
+            </form>
+
+            <div class="page-info-footer">
+                <h4>Important Information</h4>
+                <p>Resend verification only for pending accounts. After successful email verification, admin approval is still required before login.</p>
+            </div>
+
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    // view-redirect-guard: ensure template previews route to the controller endpoint
+    var path = window.location.pathname || '';
+    var fromViewsTemplate = /\/views\/resend_verification\.view\.html$/i.test(path);
+    var fromFilePreview = window.location.protocol === 'file:';
+
+    if (!fromViewsTemplate && !fromFilePreview) {
+        return;
+    }
+
+    var origin = window.location.origin && window.location.origin !== 'null'
+        ? window.location.origin
+        : 'http://127.0.0.1:8000';
+    var basePath = path.replace(/\/views\/[^/]+\.view\.html$/i, '');
+    window.location.href = origin + basePath + '/' + window.location.search;
+})();
+</script>
+</body>
+</html>
+
+
+
+
+

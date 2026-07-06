@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<!--
+  Overview: Results
+  Purpose: Defines the page structure and content for this view.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Election Results</title>
+    <link rel="stylesheet" href="assets/css/views/results.css">
+    <link rel="stylesheet" href="assets/css/global_menu.css">
+    <script src="assets/js/global_menu.js" defer></script>
+</head>
+<body>
+<div class="main-container">
+    <div class="card" style="max-width: 1080px; margin: 0 auto;">
+        <div class="card-header">
+            <h2>Election Results</h2>
+            <p>Automated digital tallying for all completed ballots.</p>
+        </div>
+        <div class="card-body">
+            <div class="stats-grid" style="margin-bottom: 16px;">
+                <div class="stat-card"><p>Election Status</p><strong><?php echo $election_open ? 'OPEN' : 'CLOSED'; ?></strong></div>
+                <div class="stat-card"><p>Registered Voters</p><strong><?php echo (int)$turnout['registered_voters']; ?></strong></div>
+                <div class="stat-card"><p>Total Votes Cast</p><strong><?php echo (int)$turnout['votes_cast']; ?></strong></div>
+                <div class="stat-card"><p>Turnout</p><strong><?php echo (float)$turnout['turnout_percentage']; ?>%</strong></div>
+            </div>
+
+            <?php if (!$results_published && !$admin_view): ?>
+                <div class="alert alert-info">Results are not published yet. Please check again after official release.</div>
+            <?php elseif (empty($results)): ?>
+                <div class="alert alert-info">No tally data available yet.</div>
+            <?php else: ?>
+                <?php foreach ($results as $position): ?>
+                    <h3 style="margin-top: 18px;"><?php echo htmlspecialchars($position['position_name']); ?></h3>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Candidate</th>
+                                    <th>Party</th>
+                                    <th>Votes</th>
+                                    <th>Percent</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php if (empty($position['candidates'])): ?>
+                                <tr><td colspan="5">No candidates configured.</td></tr>
+                            <?php else: ?>
+                                <?php foreach ($position['candidates'] as $candidate): ?>
+                                    <tr>
+                                        <td><?php echo htmlspecialchars($candidate['full_name']); ?></td>
+                                        <td><?php echo htmlspecialchars($candidate['party_name']); ?></td>
+                                        <td><?php echo (int)$candidate['votes']; ?></td>
+                                        <td><?php echo (float)$candidate['percentage']; ?>%</td>
+                                        <td>
+                                            <?php if ($candidate['is_leading']): ?>
+                                                <span class="status-badge status-active">Leading</span>
+                                            <?php else: ?>
+                                                <span class="status-badge status-warning">Trailing</span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+
+            <p class="footer-note">Results update automatically as new votes are cast.</p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:10px;">
+                <?php if (!empty($admin_view)): ?>
+                    <a href="admin_logout.php" class="btn btn-danger">Admin Logout</a>
+                <?php elseif (!empty($voter_view)): ?>
+                    <a href="voter_logout.php" class="btn btn-danger">Logout</a>
+                <?php endif; ?>
+            </div>
+
+            <div class="page-info-footer">
+                <h4>Important Information</h4>
+                <p>Results are official only when published by election administrators. Turnout and totals update from recorded ballots.</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    // view-redirect-guard: ensure template previews route to the controller endpoint
+    var path = window.location.pathname || '';
+    var fromViewsTemplate = /\/views\/results\.view\.html$/i.test(path);
+    var fromFilePreview = window.location.protocol === 'file:';
+
+    if (!fromViewsTemplate && !fromFilePreview) {
+        return;
+    }
+
+    var origin = window.location.origin && window.location.origin !== 'null'
+        ? window.location.origin
+        : 'http://127.0.0.1:8000';
+    var basePath = path.replace(/\/views\/[^/]+\.view\.html$/i, '');
+    window.location.href = origin + basePath + '/' + window.location.search;
+})();
+</script>
+</body>
+</html>
+
+
+
+
+
