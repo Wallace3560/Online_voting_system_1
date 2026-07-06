@@ -14,4 +14,3 @@ if ($constituency_id <= 0) {
 
 echo json_encode(getWardsByConstituency($constituency_id));
 ?>
-?>

@@ -18,20 +18,27 @@ if ($conn && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = 'Invalid request token. Please refresh and try again.';
     }
 
-    $identifier = sanitize($_POST['identifier']);
+    $identifier = sanitize($_POST['identifier'] ?? '');
     
     if ($error === '') {
         $query = "SELECT voter_id, full_name, email, national_id, email_verified, admin_verified, verification_status, rejection_reason
                   FROM voters WHERE national_id = ? OR email = ?";
         $stmt = mysqli_prepare($conn, $query);
-        mysqli_stmt_bind_param($stmt, "ss", $identifier, $identifier);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
+        if (!$stmt) {
+            $error = 'System error. Please try again later.';
+            logAuditEvent('system', null, 'check_verification_prepare_failed');
+        }
 
-        if ($voter = mysqli_fetch_assoc($result)) {
-            $status_info = $voter;
-        } else {
-            $error = "No voter found with the provided National ID or Email!";
+        if ($error === '') {
+            mysqli_stmt_bind_param($stmt, "ss", $identifier, $identifier);
+            mysqli_stmt_execute($stmt);
+            $result = mysqli_stmt_get_result($stmt);
+
+            if ($voter = mysqli_fetch_assoc($result)) {
+                $status_info = $voter;
+            } else {
+                $error = "No voter found with the provided National ID or Email!";
+            }
         }
     }
 }

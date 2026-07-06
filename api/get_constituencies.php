@@ -14,4 +14,3 @@ if ($county_id <= 0) {
 
 echo json_encode(getConstituenciesByCounty($county_id));
 ?>
-?>

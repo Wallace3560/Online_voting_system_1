@@ -34,13 +34,22 @@ if ($conn && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $query = "UPDATE voters SET verification_token = ?, verification_token_expires_at = ? WHERE voter_id = ?";
             $stmt = mysqli_prepare($conn, $query);
-            mysqli_stmt_bind_param($stmt, "ssi", $token, $token_expiry, $voter['voter_id']);
-            mysqli_stmt_execute($stmt);
+            if (!$stmt) {
+                $error = 'System error. Please try again later.';
+                logAuditEvent('system', null, 'resend_verification_prepare_failed', ['email' => $email]);
+            }
 
-            sendVerificationEmail($email, $token);
-            recordRateLimitEvent('resend_verification', strtolower($email), true);
-            logAuditEvent('system', null, 'verification_resent', ['email' => $email]);
-            $message = 'If your account exists and is pending email verification, a verification email has been sent.';
+            if ($error === '') {
+                mysqli_stmt_bind_param($stmt, "ssi", $token, $token_expiry, $voter['voter_id']);
+                mysqli_stmt_execute($stmt);
+            }
+
+            if ($error === '') {
+                sendVerificationEmail($email, $token);
+                recordRateLimitEvent('resend_verification', strtolower($email), true);
+                logAuditEvent('system', null, 'verification_resent', ['email' => $email]);
+                $message = 'If your account exists and is pending email verification, a verification email has been sent.';
+            }
         } else {
             recordRateLimitEvent('resend_verification', strtolower($email), false);
             $message = 'If your account exists and is pending email verification, a verification email has been sent.';

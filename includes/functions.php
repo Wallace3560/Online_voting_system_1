@@ -81,4 +81,3 @@ if (!function_exists('getVoterByEmail')) {
     }
 }
 ?>
-?>

@@ -101,9 +101,14 @@ if ($conn && $_SERVER['REQUEST_METHOD'] == 'POST') {
             $insert_query = "INSERT INTO voters (national_id, full_name, email, phone, password, county_id, constituency_id, ward_id, date_of_birth, national_id_front_path, national_id_back_path, verification_token, verification_token_expires_at, email_verified, admin_verified, verification_status)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'pending')";
             $stmt = mysqli_prepare($conn, $insert_query);
-            mysqli_stmt_bind_param($stmt, "sssssiiisssss", $national_id, $full_name, $email, $phone, $hashed_password, $county_id, $constituency_id, $ward_id, $dob, $national_id_front_path, $national_id_back_path, $verification_token, $token_expiry);
+            if (!$stmt) {
+                $error = 'System error. Please try again later.';
+                logAuditEvent('system', null, 'voter_register_prepare_failed');
+            } else {
+                mysqli_stmt_bind_param($stmt, "sssssiiisssss", $national_id, $full_name, $email, $phone, $hashed_password, $county_id, $constituency_id, $ward_id, $dob, $national_id_front_path, $national_id_back_path, $verification_token, $token_expiry);
+            }
             
-            if (mysqli_stmt_execute($stmt)) {
+            if ($error === '' && mysqli_stmt_execute($stmt)) {
                 sendVerificationEmail($email, $verification_token);
                 recordRateLimitEvent('register', getClientIpAddress(), true);
                 logAuditEvent('system', null, 'voter_registered', ['national_id' => $national_id]);

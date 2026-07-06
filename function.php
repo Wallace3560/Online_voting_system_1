@@ -2142,17 +2142,28 @@ function reviewManualVoteBatch($batch_id, $candidate_id, $approved_votes, $decis
 
         if ($approved_count >= 2) {
             $insert_vote_stmt = mysqli_prepare($conn, "INSERT INTO votes (voter_id, position_id, candidate_id)
-                VALUES (0, ?, ?)");
+                VALUES (?, ?, ?)");
             if (!$insert_vote_stmt) {
                 throw new Exception('Unable to apply approved manual votes.');
             }
 
+            $seed_stmt = mysqli_prepare($conn, "SELECT COALESCE(MIN(voter_id), 0) AS min_voter_id FROM votes WHERE voter_id < 0");
+            if (!$seed_stmt) {
+                throw new Exception('Unable to apply approved manual votes.');
+            }
+            if (!mysqli_stmt_execute($seed_stmt)) {
+                throw new Exception('Unable to apply approved manual votes.');
+            }
+            $seed_row = mysqli_fetch_assoc(mysqli_stmt_get_result($seed_stmt));
+            $next_manual_voter_id = min(0, (int)($seed_row['min_voter_id'] ?? 0)) - 1;
+
             for ($i = 0; $i < $approved_votes; $i++) {
                 $position_id = (int)$batch['position_id'];
-                mysqli_stmt_bind_param($insert_vote_stmt, 'ii', $position_id, $candidate_id);
+                mysqli_stmt_bind_param($insert_vote_stmt, 'iii', $next_manual_voter_id, $position_id, $candidate_id);
                 if (!mysqli_stmt_execute($insert_vote_stmt)) {
                     throw new Exception('Unable to apply approved manual votes.');
                 }
+                $next_manual_voter_id--;
             }
 
             $update_batch_approved = mysqli_prepare($conn, "UPDATE manual_vote_batches
@@ -3673,5 +3684,4 @@ function getTurnoutStats() {
 
 ensureSecuritySchema();
 ensureElectionSchema();
-?>
 ?>
