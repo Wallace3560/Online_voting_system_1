@@ -38,21 +38,41 @@
             <h3 style="margin-top: 20px;">Election Controls</h3>
             <div class="stats-grid" style="margin-bottom: 10px;">
                 <div class="stat-card"><p>Voting</p><strong><?php echo $election_open ? 'OPEN' : 'CLOSED'; ?></strong></div>
+                <div class="stat-card"><p>Timeline</p><strong><?php echo htmlspecialchars($election_timeline_label); ?></strong></div>
                 <div class="stat-card"><p>Results</p><strong><?php echo $results_published ? 'PUBLISHED' : 'HIDDEN'; ?></strong></div>
                 <div class="stat-card"><p>Verified Voters</p><strong><?php echo (int)($stats['verified'] ?? 0); ?></strong></div>
                 <div class="stat-card"><p>Total Votes Cast</p><strong><?php echo (int)getTotalVotesCast(); ?></strong></div>
             </div>
 
+            <?php if (!empty($can_manage)): ?>
+            <form method="POST" action="admin_verify_voters.php" style="display:grid; gap:10px; margin-bottom: 18px;">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                <input type="hidden" name="action" value="set_election_schedule">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Election Start Date and Time *</label>
+                        <input type="datetime-local" name="election_start_at" value="<?php echo htmlspecialchars($election_start_input); ?>" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Election End Date and Time *</label>
+                        <input type="datetime-local" name="election_end_at" value="<?php echo htmlspecialchars($election_end_input); ?>" required>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" type="submit">Save Election Schedule</button>
+            </form>
+
+            <div class="alert alert-info" style="margin-bottom: 12px;">
+                Scheduled Window:
+                <strong>
+                    <?php if (!empty($election_start_at) && !empty($election_end_at)): ?>
+                        <?php echo htmlspecialchars($election_start_at); ?> to <?php echo htmlspecialchars($election_end_at); ?>
+                    <?php else: ?>
+                        Not scheduled yet
+                    <?php endif; ?>
+                </strong>
+            </div>
+
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 18px;">
-                <?php if (!empty($can_manage)): ?>
-                <form method="POST" action="admin_verify_voters.php" style="display:inline;">
-                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
-                    <button class="btn btn-secondary" name="action" value="open_election" type="submit">Open Election</button>
-                </form>
-                <form method="POST" action="admin_verify_voters.php" style="display:inline;">
-                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
-                    <button class="btn btn-danger" name="action" value="close_election" type="submit">Close Election</button>
-                </form>
                 <form method="POST" action="admin_verify_voters.php" style="display:inline;">
                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
                     <button class="btn btn-primary" name="action" value="publish_results" type="submit">Publish Results</button>
@@ -61,8 +81,8 @@
                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
                     <button class="btn btn-secondary" name="action" value="hide_results" type="submit">Hide Results</button>
                 </form>
-                <?php endif; ?>
             </div>
+            <?php endif; ?>
 
             <?php if (!empty($can_manage)): ?>
             <h3 style="margin-top: 20px;">Election Archive and Fresh Reset</h3>

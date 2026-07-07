@@ -22,9 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     $action = sanitize($_POST['action']);
-    $admin_actions = ['approve', 'reject', 'open_election', 'close_election', 'publish_results', 'hide_results', 'add_candidate', 'update_voter', 'force_reject_voter', 'update_candidate', 'archive_reset_election', 'download_archived_results', 'create_by_election', 'add_by_election_candidate', 'close_by_election', 'mark_candidate_deceased', 'create_sub_admin', 'submit_manual_vote_batch', 'review_manual_vote_batch'];
+    $admin_actions = ['approve', 'reject', 'set_election_schedule', 'publish_results', 'hide_results', 'add_candidate', 'update_voter', 'force_reject_voter', 'update_candidate', 'archive_reset_election', 'download_archived_results', 'create_by_election', 'add_by_election_candidate', 'close_by_election', 'mark_candidate_deceased', 'create_sub_admin', 'submit_manual_vote_batch', 'review_manual_vote_batch'];
 
-    $sensitive_actions = ['open_election', 'close_election', 'publish_results', 'hide_results', 'archive_reset_election', 'download_archived_results'];
+    $sensitive_actions = ['set_election_schedule', 'publish_results', 'hide_results', 'archive_reset_election', 'download_archived_results'];
     if ($error === '' && in_array($action, $admin_actions, true) && !$can_manage) {
         $error = 'Your role does not have permission to perform this action.';
         logAuditEvent('admin', (int)($_SESSION['admin_id'] ?? 0), 'admin_action_forbidden', ['action' => $action, 'role' => $admin_role]);
@@ -46,14 +46,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         } else {
             $error = 'Failed to process voter verification.';
         }
-    } elseif ($error === '' && $action === 'open_election') {
-        setElectionSetting('election_status', 'open');
-        $message = 'Election opened successfully.';
-        logAuditEvent('admin', (int)$_SESSION['admin_id'], 'election_opened');
-    } elseif ($error === '' && $action === 'close_election') {
-        setElectionSetting('election_status', 'closed');
-        $message = 'Election closed successfully.';
-        logAuditEvent('admin', (int)$_SESSION['admin_id'], 'election_closed');
+    } elseif ($error === '' && $action === 'set_election_schedule') {
+        $start_input = sanitize($_POST['election_start_at'] ?? '');
+        $end_input = sanitize($_POST['election_end_at'] ?? '');
+        $start_ts = $start_input !== '' ? strtotime($start_input) : false;
+        $end_ts = $end_input !== '' ? strtotime($end_input) : false;
+
+        if ($start_input === '' || $end_input === '') {
+            $error = 'Start and end date/time are required.';
+        } elseif ($start_ts === false || $end_ts === false) {
+            $error = 'Please provide valid start and end date/time values.';
+        } elseif ($end_ts <= $start_ts) {
+            $error = 'End date/time must be later than start date/time.';
+        } else {
+            $normalized_start = date('Y-m-d H:i:s', $start_ts);
+            $normalized_end = date('Y-m-d H:i:s', $end_ts);
+
+            $saved_start = setElectionSetting('election_start_at', $normalized_start);
+            $saved_end = setElectionSetting('election_end_at', $normalized_end);
+
+            if ($saved_start && $saved_end) {
+                setElectionSetting('election_status', 'scheduled');
+                $message = 'Election schedule saved successfully.';
+                logAuditEvent('admin', (int)$_SESSION['admin_id'], 'election_schedule_updated', [
+                    'start_at' => $normalized_start,
+                    'end_at' => $normalized_end
+                ]);
+            } else {
+                $error = 'Failed to save election schedule.';
+            }
+        }
     } elseif ($error === '' && $action === 'publish_results') {
         setElectionSetting('results_published', '1');
         $message = 'Results published for public viewing.';
@@ -482,6 +504,24 @@ $positions = getAllPositions();
 $counties = getCounties();
 $election_open = isElectionOpen();
 $results_published = areResultsPublished();
+$election_window = getElectionScheduleWindow();
+$election_start_at = is_array($election_window) ? (string)$election_window['start_at'] : '';
+$election_end_at = is_array($election_window) ? (string)$election_window['end_at'] : '';
+$election_start_input = $election_start_at !== '' ? date('Y-m-d\TH:i', strtotime($election_start_at)) : '';
+$election_end_input = $election_end_at !== '' ? date('Y-m-d\TH:i', strtotime($election_end_at)) : '';
+
+$election_timeline_label = 'NOT SCHEDULED';
+if (is_array($election_window)) {
+    $now_ts = time();
+    if ($now_ts < (int)$election_window['start_ts']) {
+        $election_timeline_label = 'SCHEDULED';
+    } elseif ($now_ts <= (int)$election_window['end_ts']) {
+        $election_timeline_label = 'LIVE';
+    } else {
+        $election_timeline_label = 'ENDED';
+    }
+}
+
 $archived_years = getArchivedElectionYears();
 $all_constituencies = getAllConstituencies();
 $all_wards = getAllWards();

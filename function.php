@@ -2325,7 +2325,32 @@ function setElectionSetting($key, $value) {
     return mysqli_stmt_execute($stmt);
 }
 
+function getElectionScheduleWindow() {
+    $start_raw = trim((string)getElectionSetting('election_start_at', ''));
+    $end_raw = trim((string)getElectionSetting('election_end_at', ''));
+
+    $start_ts = $start_raw !== '' ? strtotime($start_raw) : false;
+    $end_ts = $end_raw !== '' ? strtotime($end_raw) : false;
+
+    if ($start_ts === false || $end_ts === false || $end_ts <= $start_ts) {
+        return null;
+    }
+
+    return [
+        'start_at' => date('Y-m-d H:i:s', $start_ts),
+        'end_at' => date('Y-m-d H:i:s', $end_ts),
+        'start_ts' => $start_ts,
+        'end_ts' => $end_ts
+    ];
+}
+
 function isElectionOpen() {
+    $window = getElectionScheduleWindow();
+    if (is_array($window)) {
+        $now = time();
+        return $now >= (int)$window['start_ts'] && $now <= (int)$window['end_ts'];
+    }
+
     return getElectionSetting('election_status', 'closed') === 'open';
 }
 
