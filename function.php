@@ -292,6 +292,56 @@ function sendVerificationEmail($email, $token) {
     return $sent;
 }
 
+function isUsableLanIpv4($ip) {
+    if (!is_string($ip) || $ip === '') {
+        return false;
+    }
+
+    if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        return false;
+    }
+
+    if (preg_match('/^(127\.|169\.254\.)/', $ip)) {
+        return false;
+    }
+
+    return true;
+}
+
+function detectPreferredLanIpv4() {
+    // Best-effort method: ask the OS which interface would route external traffic.
+    if (function_exists('stream_socket_client') && function_exists('stream_socket_get_name')) {
+        $sock = @stream_socket_client('udp://8.8.8.8:53', $errno, $errstr, 1, STREAM_CLIENT_CONNECT);
+        if ($sock) {
+            $local = @stream_socket_get_name($sock, false);
+            @fclose($sock);
+            if (is_string($local) && $local !== '') {
+                $parts = explode(':', $local);
+                $candidate = trim((string)$parts[0]);
+                if (isUsableLanIpv4($candidate)) {
+                    return $candidate;
+                }
+            }
+        }
+    }
+
+    $server_addr = (string)($_SERVER['SERVER_ADDR'] ?? '');
+    if (isUsableLanIpv4($server_addr)) {
+        return $server_addr;
+    }
+
+    $all = @gethostbynamel(@gethostname());
+    if (is_array($all)) {
+        foreach ($all as $candidate) {
+            if (isUsableLanIpv4((string)$candidate)) {
+                return (string)$candidate;
+            }
+        }
+    }
+
+    return '';
+}
+
 function getAppBaseUrl() {
     $file_cfg = getMailConfigFileValues();
     $configured_base = getenv('APP_BASE_URL') ?: (string)($file_cfg['APP_BASE_URL'] ?? '');
@@ -308,17 +358,7 @@ function getAppBaseUrl() {
 
     // If request host is localhost, prefer a LAN-reachable address for links sent by email.
     if (in_array(strtolower($host_only), ['127.0.0.1', 'localhost'], true)) {
-        $server_addr = (string)($_SERVER['SERVER_ADDR'] ?? '');
-        $candidate_host = '';
-
-        if ($server_addr !== '' && !in_array($server_addr, ['127.0.0.1', '::1'], true)) {
-            $candidate_host = $server_addr;
-        } else {
-            $machine_ip = @gethostbyname(@gethostname());
-            if ($machine_ip && $machine_ip !== gethostname() && !in_array($machine_ip, ['127.0.0.1', '::1'], true)) {
-                $candidate_host = $machine_ip;
-            }
-        }
+        $candidate_host = detectPreferredLanIpv4();
 
         if ($candidate_host !== '') {
             $port = (string)($_SERVER['SERVER_PORT'] ?? '');
