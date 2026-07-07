@@ -2005,6 +2005,22 @@ function requireAdminAuth() {
         header('Location: admin_login.php');
         exit();
     }
+
+    $admin_id = (int)($_SESSION['admin_id'] ?? 0);
+    $admin = $admin_id > 0 ? getAdminById($admin_id) : null;
+    if (!$admin) {
+        $_SESSION = [];
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
+        }
+        header('Location: admin_login.php');
+        exit();
+    }
+
+    // Keep session identity synchronized with the active admin record.
+    $_SESSION['admin_name'] = (string)($admin['full_name'] ?? ($_SESSION['admin_name'] ?? 'Admin'));
+    $_SESSION['admin_email'] = (string)($admin['email'] ?? ($_SESSION['admin_email'] ?? ''));
+    $_SESSION['admin_role'] = (string)($admin['admin_role'] ?? ($_SESSION['admin_role'] ?? 'super_admin'));
 }
 
 function requireAdminRole($roles) {
