@@ -24,8 +24,6 @@
         { href: 'voter_account.php', label: 'My Account' },
         { href: 'results.php', label: 'Election Results' },
         { href: 'admin_login.php', label: 'Admin Login' },
-        { href: 'admin_verify_voters.php', label: 'Admin Dashboard' },
-        { href: 'admin_manage_voters.php', label: 'Admin Manage Voters' },
         { href: 'voter_logout.php', label: 'Voter Logout' },
         { href: 'admin_logout.php', label: 'Admin Logout' }
     ];
