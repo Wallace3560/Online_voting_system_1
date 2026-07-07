@@ -44,7 +44,7 @@
                 <div class="stat-card"><p>Total Votes Cast</p><strong><?php echo (int)getTotalVotesCast(); ?></strong></div>
             </div>
 
-            <?php if (!empty($can_manage)): ?>
+            <?php if (!empty($can_manage_sensitive)): ?>
             <form method="POST" action="admin_verify_voters.php" style="display:grid; gap:10px; margin-bottom: 18px;">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
                 <input type="hidden" name="action" value="set_election_schedule">
@@ -84,7 +84,11 @@
             </div>
             <?php endif; ?>
 
-            <?php if (!empty($can_manage)): ?>
+            <?php if (empty($can_manage_sensitive) && ($admin_role ?? '') === 'election_officer'): ?>
+                <div class="alert alert-info" style="margin-bottom: 12px;">Election officers can read election results but cannot publish, hide, archive, or change election schedule.</div>
+            <?php endif; ?>
+
+            <?php if (!empty($can_manage_sensitive)): ?>
             <h3 style="margin-top: 20px;">Election Archive and Fresh Reset</h3>
             <div class="alert alert-info">Use this when a new election is approaching. It archives current results to the selected year, clears candidates and votes, and reopens setup for a fresh election cycle.</div>
             <div class="form-row" style="margin-bottom: 14px;">
@@ -157,7 +161,7 @@
 
             <?php if (!empty($can_submit_manual_votes)): ?>
             <h3 style="margin-top: 20px;">Manual Vote Intake (Low Network Areas)</h3>
-            <div class="alert alert-info">Use this when votes are collected manually. Submitted batches are only counted after approval by <strong>two different super admins</strong>.</div>
+            <div class="alert alert-info">Use this when votes are collected manually. Submitted batches are only counted after approval by <strong>two different reviewers (super-admin/sub-admin)</strong>.</div>
             <form method="POST" action="admin_verify_voters.php" style="margin-bottom: 20px;">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
                 <input type="hidden" name="action" value="submit_manual_vote_batch">
@@ -218,7 +222,7 @@
             <?php endif; ?>
 
             <?php if (!empty($can_review_manual_votes)): ?>
-            <h3 style="margin-top: 20px;">Pending Manual Vote Batches (Super Admin Dual Approval)</h3>
+            <h3 style="margin-top: 20px;">Pending Manual Vote Batches (Super-Admin/Sub-Admin Dual Approval)</h3>
             <div class="table-wrap" style="margin-bottom: 20px;">
                 <table>
                     <thead>
@@ -264,7 +268,7 @@
                                             <option value="approved">Approve</option>
                                             <option value="rejected">Reject</option>
                                         </select>
-                                        <input type="text" name="decision_note" placeholder="Decision note" value="Reviewed by super admin" required>
+                                        <input type="text" name="decision_note" placeholder="Decision note" value="Reviewed by admin reviewer" required>
                                         <button class="btn btn-secondary" type="submit">Submit Review</button>
                                     </form>
                                 </td>
@@ -309,6 +313,17 @@
                 </div>
 
                 <div class="form-row">
+                    <div class="form-group">
+                        <label>By-Election Opens At *</label>
+                        <input type="datetime-local" name="by_open_at" value="<?php echo htmlspecialchars(date('Y-m-d\\TH:i')); ?>" required>
+                    </div>
+                    <div class="form-group">
+                        <label>By-Election Closes At *</label>
+                        <input type="datetime-local" name="by_close_at" value="<?php echo htmlspecialchars(date('Y-m-d\\TH:i', strtotime('+7 days'))); ?>" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
                     <div class="form-group" id="by-county-wrap" style="display:none;">
                         <label>County *</label>
                         <select name="by_county_id" id="by_county_id">
@@ -349,6 +364,8 @@
                             <th>Title</th>
                             <th>Position</th>
                             <th>Area</th>
+                            <th>Opens</th>
+                            <th>Closes</th>
                             <th>Status</th>
                             <th>Candidates</th>
                             <th>Votes</th>
@@ -357,7 +374,7 @@
                     </thead>
                     <tbody>
                     <?php if (empty($by_elections)): ?>
-                        <tr><td colspan="7">No by-elections created yet.</td></tr>
+                        <tr><td colspan="9">No by-elections created yet.</td></tr>
                     <?php else: ?>
                         <?php foreach ($by_elections as $by): ?>
                             <tr>
@@ -379,7 +396,9 @@
                                         National
                                     <?php endif; ?>
                                 </td>
-                                <td><?php echo strtoupper(htmlspecialchars($by['status'] ?? '')); ?></td>
+                                <td><?php echo htmlspecialchars($by['opens_at'] ?? '-'); ?></td>
+                                <td><?php echo htmlspecialchars($by['closes_at'] ?? '-'); ?></td>
+                                <td><?php echo strtoupper(htmlspecialchars($by['timeline_status'] ?? ($by['status'] ?? ''))); ?></td>
                                 <td><?php echo (int)($by['candidates_count'] ?? 0); ?></td>
                                 <td><?php echo (int)($by['votes_count'] ?? 0); ?></td>
                                 <td>

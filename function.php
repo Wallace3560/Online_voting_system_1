@@ -1401,6 +1401,8 @@ function ensureElectionSchema() {
         county_id INT NULL,
         constituency_id INT NULL,
         ward_id INT NULL,
+        opens_at DATETIME NULL,
+        closes_at DATETIME NULL,
         status ENUM('active','closed') NOT NULL DEFAULT 'active',
         created_by_admin_id INT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1411,6 +1413,16 @@ function ensureElectionSchema() {
         INDEX idx_byelection_scope_constituency (scope, constituency_id),
         INDEX idx_byelection_scope_ward (scope, ward_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $column_check = mysqli_query($conn, "SHOW COLUMNS FROM by_elections LIKE 'opens_at'");
+    if ($column_check && mysqli_num_rows($column_check) === 0) {
+        mysqli_query($conn, "ALTER TABLE by_elections ADD COLUMN opens_at DATETIME NULL AFTER ward_id");
+    }
+
+    $column_check = mysqli_query($conn, "SHOW COLUMNS FROM by_elections LIKE 'closes_at'");
+    if ($column_check && mysqli_num_rows($column_check) === 0) {
+        mysqli_query($conn, "ALTER TABLE by_elections ADD COLUMN closes_at DATETIME NULL AFTER opens_at");
+    }
 
     mysqli_query($conn, "CREATE TABLE IF NOT EXISTS by_election_candidates (
         by_election_candidate_id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -1946,7 +1958,7 @@ function requireAdminRole($roles) {
 }
 
 function canManageElection($admin_role) {
-    return in_array((string)$admin_role, ['super_admin', 'election_officer'], true);
+    return in_array((string)$admin_role, ['super_admin', 'sub_admin', 'election_officer'], true);
 }
 
 function canCreateSubAdmins($admin_role) {
@@ -1954,10 +1966,18 @@ function canCreateSubAdmins($admin_role) {
 }
 
 function canSubmitManualVotes($admin_role) {
-    return in_array((string)$admin_role, ['super_admin', 'election_officer'], true);
+    return in_array((string)$admin_role, ['super_admin', 'sub_admin', 'election_officer'], true);
 }
 
 function canReviewManualVotes($admin_role) {
+    return in_array((string)$admin_role, ['super_admin', 'sub_admin'], true);
+}
+
+function canVerifyVoters($admin_role) {
+    return in_array((string)$admin_role, ['super_admin', 'sub_admin'], true);
+}
+
+function canManageSensitiveElectionActions($admin_role) {
     return (string)$admin_role === 'super_admin';
 }
 
@@ -2057,7 +2077,7 @@ function submitManualVoteBatch($batch_title, $position_id, $county_id, $constitu
         'proposed_votes' => $proposed_votes
     ]);
 
-    return ['ok' => true, 'message' => 'Manual vote batch submitted for dual super-admin approval.', 'batch_id' => $batch_id];
+    return ['ok' => true, 'message' => 'Manual vote batch submitted for dual super-admin/sub-admin approval.', 'batch_id' => $batch_id];
 }
 
 function reviewManualVoteBatch($batch_id, $candidate_id, $approved_votes, $decision, $decision_note, $review_admin_id) {
@@ -2173,11 +2193,11 @@ function reviewManualVoteBatch($batch_id, $candidate_id, $approved_votes, $decis
             mysqli_stmt_execute($update_batch_approved);
 
             mysqli_commit($conn);
-            return ['ok' => true, 'message' => 'Manual vote batch approved by two super admins and counted.'];
+            return ['ok' => true, 'message' => 'Manual vote batch approved by two reviewers (super-admin/sub-admin) and counted.'];
         }
 
         mysqli_commit($conn);
-        return ['ok' => true, 'message' => 'First approval captured. Awaiting second super-admin approval.'];
+        return ['ok' => true, 'message' => 'First approval captured. Awaiting second super-admin/sub-admin approval.'];
     } catch (Exception $e) {
         mysqli_rollback($conn);
         return ['ok' => false, 'message' => $e->getMessage()];
@@ -2562,6 +2582,8 @@ function markCandidateDeceasedAndDraftByElection($candidate_id, $admin_id, $dece
             (int)($candidate['county_id'] ?? 0),
             (int)($candidate['constituency_id'] ?? 0),
             (int)($candidate['ward_id'] ?? 0),
+            date('Y-m-d H:i:s'),
+            date('Y-m-d H:i:s', strtotime('+7 days')),
             $admin_id
         );
 
@@ -3171,7 +3193,7 @@ function getByElectionById($by_election_id) {
     return $result ? mysqli_fetch_assoc($result) : null;
 }
 
-function createByElection($position_id, $election_title, $affected_candidate_name, $reason, $county_id, $constituency_id, $ward_id, $admin_id) {
+function createByElection($position_id, $election_title, $affected_candidate_name, $reason, $county_id, $constituency_id, $ward_id, $open_at, $close_at, $admin_id) {
     global $conn;
     if (!hasDbConnection()) {
         return ['ok' => false, 'message' => 'Database is unavailable.'];
@@ -3185,10 +3207,25 @@ function createByElection($position_id, $election_title, $affected_candidate_nam
     $election_title = trim((string)$election_title);
     $affected_candidate_name = trim((string)$affected_candidate_name);
     $reason = trim((string)$reason);
+    $open_at = trim((string)$open_at);
+    $close_at = trim((string)$close_at);
+    $open_ts = $open_at !== '' ? strtotime($open_at) : false;
+    $close_ts = $close_at !== '' ? strtotime($close_at) : false;
 
     if ($position_id <= 0 || $reason === '') {
         return ['ok' => false, 'message' => 'Position and reason are required for a by-election.'];
     }
+
+    if ($open_at === '' || $close_at === '') {
+        return ['ok' => false, 'message' => 'By-election opening and closing date/time are required.'];
+    }
+
+    if ($open_ts === false || $close_ts === false || $close_ts <= $open_ts) {
+        return ['ok' => false, 'message' => 'By-election closing date/time must be later than opening date/time.'];
+    }
+
+    $open_value = date('Y-m-d H:i:s', $open_ts);
+    $close_value = date('Y-m-d H:i:s', $close_ts);
 
     $position_query = "SELECT position_id, position_name, scope FROM positions WHERE position_id = ? LIMIT 1";
     $position_stmt = mysqli_prepare($conn, $position_query);
@@ -3231,6 +3268,7 @@ function createByElection($position_id, $election_title, $affected_candidate_nam
 
     $existing_query = "SELECT by_election_id FROM by_elections
         WHERE status = 'active'
+                    AND (closes_at IS NULL OR closes_at >= NOW())
           AND position_id = ?
           AND ((scope = 'national')
             OR (scope = 'county' AND county_id <=> ?)
@@ -3248,15 +3286,15 @@ function createByElection($position_id, $election_title, $affected_candidate_nam
     }
 
     $insert_query = "INSERT INTO by_elections
-        (position_id, election_title, affected_candidate_name, reason, scope, county_id, constituency_id, ward_id, status, created_by_admin_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)";
+        (position_id, election_title, affected_candidate_name, reason, scope, county_id, constituency_id, ward_id, opens_at, closes_at, status, created_by_admin_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)";
     $insert_stmt = mysqli_prepare($conn, $insert_query);
     if (!$insert_stmt) {
         return ['ok' => false, 'message' => 'Failed to create by-election.'];
     }
     mysqli_stmt_bind_param(
         $insert_stmt,
-        "issssiiii",
+        "issssiiissi",
         $position_id,
         $election_title,
         $affected_candidate_name,
@@ -3265,6 +3303,8 @@ function createByElection($position_id, $election_title, $affected_candidate_nam
         $county_value,
         $constituency_value,
         $ward_value,
+        $open_value,
+        $close_value,
         $admin_id
     );
 
@@ -3312,10 +3352,16 @@ function getByElectionsForAdmin() {
         return [];
     }
 
-    $query = "SELECT b.*, p.position_name,
+     $query = "SELECT b.*, p.position_name,
                      co.county_name,
                      cn.constituency_name,
                      w.ward_name,
+                            CASE
+                                WHEN b.status = 'closed' THEN 'closed'
+                                WHEN b.opens_at IS NOT NULL AND NOW() < b.opens_at THEN 'scheduled'
+                                WHEN b.closes_at IS NOT NULL AND NOW() > b.closes_at THEN 'ended'
+                                ELSE 'live'
+                            END AS timeline_status,
                      (SELECT COUNT(*) FROM by_election_candidates c WHERE c.by_election_id = b.by_election_id AND c.status = 'active') AS candidates_count,
                      (SELECT COUNT(*) FROM by_election_votes v WHERE v.by_election_id = b.by_election_id) AS votes_count
               FROM by_elections b
@@ -3367,6 +3413,8 @@ function getActiveByElectionsForVoter($voter_id) {
               FROM by_elections b
               JOIN positions p ON p.position_id = b.position_id
               WHERE b.status = 'active'
+                                AND (b.opens_at IS NULL OR b.opens_at <= NOW())
+                                AND (b.closes_at IS NULL OR b.closes_at >= NOW())
                 AND (
                     b.scope = 'national'
                     OR (b.scope = 'county' AND b.county_id = ?)
@@ -3429,6 +3477,8 @@ function submitByElectionVote($voter_id, $by_election_id, $by_election_candidate
               WHERE b.by_election_id = ?
                 AND c.by_election_candidate_id = ?
                 AND b.status = 'active'
+                                AND (b.opens_at IS NULL OR b.opens_at <= NOW())
+                                AND (b.closes_at IS NULL OR b.closes_at >= NOW())
                 AND c.status = 'active'
               LIMIT 1";
     $stmt = mysqli_prepare($conn, $query);

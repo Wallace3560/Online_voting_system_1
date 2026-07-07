@@ -12,6 +12,8 @@ $can_manage = canManageElection($admin_role);
 $can_create_sub_admins = canCreateSubAdmins($admin_role);
 $can_submit_manual_votes = canSubmitManualVotes($admin_role);
 $can_review_manual_votes = canReviewManualVotes($admin_role);
+$can_verify_voters = canVerifyVoters($admin_role);
+$can_manage_sensitive = canManageSensitiveElectionActions($admin_role);
 
 $message = '';
 $error = '';
@@ -28,23 +30,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if ($error === '' && in_array($action, $admin_actions, true) && !$can_manage) {
         $error = 'Your role does not have permission to perform this action.';
         logAuditEvent('admin', (int)($_SESSION['admin_id'] ?? 0), 'admin_action_forbidden', ['action' => $action, 'role' => $admin_role]);
-    } elseif ($error === '' && $admin_role === 'sub_admin' && in_array($action, $sensitive_actions, true)) {
-        $error = 'Sub-admin role cannot perform this sensitive action.';
-        logAuditEvent('admin', (int)($_SESSION['admin_id'] ?? 0), 'sub_admin_sensitive_action_blocked', ['action' => $action]);
+    } elseif ($error === '' && in_array($action, $sensitive_actions, true) && !$can_manage_sensitive) {
+        $error = 'Your role cannot perform this sensitive action.';
+        logAuditEvent('admin', (int)($_SESSION['admin_id'] ?? 0), 'admin_sensitive_action_blocked', ['action' => $action, 'role' => $admin_role]);
     }
 
     if ($error === '' && ($action === 'approve' || $action === 'reject') && isset($_POST['voter_id'])) {
-        $voter_id = (int)$_POST['voter_id'];
-        $rejection_reason = isset($_POST['rejection_reason']) ? sanitize($_POST['rejection_reason']) : null;
-
-        if (verifyVoter($voter_id, $_SESSION['admin_id'], $action, $rejection_reason)) {
-            $message = 'Voter ' . ($action === 'approve' ? 'approved' : 'rejected') . ' successfully.';
-            logAuditEvent('admin', (int)$_SESSION['admin_id'], 'voter_verification_' . $action, [
-                'voter_id' => $voter_id,
-                'rejection_reason' => $rejection_reason
-            ]);
+        if (!$can_verify_voters) {
+            $error = 'Only super-admin and sub-admin roles can verify voters.';
         } else {
-            $error = 'Failed to process voter verification.';
+            $voter_id = (int)$_POST['voter_id'];
+            $rejection_reason = isset($_POST['rejection_reason']) ? sanitize($_POST['rejection_reason']) : null;
+
+            if (verifyVoter($voter_id, $_SESSION['admin_id'], $action, $rejection_reason)) {
+                $message = 'Voter ' . ($action === 'approve' ? 'approved' : 'rejected') . ' successfully.';
+                logAuditEvent('admin', (int)$_SESSION['admin_id'], 'voter_verification_' . $action, [
+                    'voter_id' => $voter_id,
+                    'rejection_reason' => $rejection_reason
+                ]);
+            } else {
+                $error = 'Failed to process voter verification.';
+            }
         }
     } elseif ($error === '' && $action === 'set_election_schedule') {
         $start_input = sanitize($_POST['election_start_at'] ?? '');
@@ -346,6 +352,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $county_id = (int)($_POST['by_county_id'] ?? 0);
         $constituency_id = (int)($_POST['by_constituency_id'] ?? 0);
         $ward_id = (int)($_POST['by_ward_id'] ?? 0);
+        $open_at = sanitize($_POST['by_open_at'] ?? '');
+        $close_at = sanitize($_POST['by_close_at'] ?? '');
 
         $create_result = createByElection(
             $position_id,
@@ -355,6 +363,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $county_id,
             $constituency_id,
             $ward_id,
+            $open_at,
+            $close_at,
             (int)$_SESSION['admin_id']
         );
 
@@ -469,7 +479,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
     } elseif ($error === '' && $action === 'review_manual_vote_batch') {
         if (!$can_review_manual_votes) {
-            $error = 'Only super-admins can review manual vote batches.';
+            $error = 'Only super-admin and sub-admin roles can review manual vote batches.';
         } else {
             $batch_id = (int)($_POST['batch_id'] ?? 0);
             $candidate_id = (int)($_POST['candidate_id'] ?? 0);
