@@ -302,7 +302,31 @@ function getAppBaseUrl() {
     $is_https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443);
     $scheme = $is_https ? 'https://' : 'http://';
-    $host = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
+
+    $host = (string)($_SERVER['HTTP_HOST'] ?? '127.0.0.1');
+    $host_only = preg_replace('/:\\d+$/', '', $host);
+
+    // If request host is localhost, prefer a LAN-reachable address for links sent by email.
+    if (in_array(strtolower($host_only), ['127.0.0.1', 'localhost'], true)) {
+        $server_addr = (string)($_SERVER['SERVER_ADDR'] ?? '');
+        $candidate_host = '';
+
+        if ($server_addr !== '' && !in_array($server_addr, ['127.0.0.1', '::1'], true)) {
+            $candidate_host = $server_addr;
+        } else {
+            $machine_ip = @gethostbyname(@gethostname());
+            if ($machine_ip && $machine_ip !== gethostname() && !in_array($machine_ip, ['127.0.0.1', '::1'], true)) {
+                $candidate_host = $machine_ip;
+            }
+        }
+
+        if ($candidate_host !== '') {
+            $port = (string)($_SERVER['SERVER_PORT'] ?? '');
+            $use_port = $port !== '' && !in_array($port, ['80', '443'], true);
+            $host = $use_port ? ($candidate_host . ':' . $port) : $candidate_host;
+        }
+    }
+
     $path = str_replace('\\', '/', dirname($_SERVER['PHP_SELF'] ?? '/'));
     $path = rtrim($path, '/');
     return $scheme . $host . $path;
@@ -315,7 +339,7 @@ function sendPasswordResetEmail($email, $token) {
         . "We received a request to reset your password.\n\n"
         . "Use the link below to reset your password:\n"
         . $reset_link . "\n\n"
-        . "This link expires in 1 hour.\n"
+            . "This link expires in 24 hours.\n"
         . "If you did not request this, you can ignore this email.\n\n"
         . "Online Voting System";
 
@@ -336,7 +360,7 @@ function sendAdminPasswordResetEmail($email, $token) {
         . "We received a request to reset your admin password.\n\n"
         . "Use the link below to reset your password:\n"
         . $reset_link . "\n\n"
-        . "This link expires in 1 hour.\n"
+            . "This link expires in 24 hours.\n"
         . "If you did not request this, you can ignore this email.\n\n"
         . "Online Voting System";
 

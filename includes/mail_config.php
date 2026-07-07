@@ -4,7 +4,7 @@
  * Purpose: Handles server-side logic for this feature.
  */
 return [
-    'APP_BASE_URL' => '',
+    'APP_BASE_URL' => 'http://192.168.1.77/Online_voting_system_1',
     'MAIL_FROM_ADDRESS' => 'iebconlinevotingsystem@gmail.com',
     'MAIL_FROM_NAME' => 'Online Voting System',
     'MAIL_SMTP_HOST' => 'smtp.gmail.com',

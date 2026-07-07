@@ -34,7 +34,7 @@ if ($conn && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($admin && ($admin['status'] ?? 'active') === 'active') {
             $token = generateVerificationToken();
-            $expires_at = date('Y-m-d H:i:s', strtotime('+1 hour'));
+            $expires_at = date('Y-m-d H:i:s', strtotime('+24 hours'));
 
             if (saveAdminPasswordResetToken((int)$admin['admin_id'], $token, $expires_at)) {
                 sendAdminPasswordResetEmail($email, $token);
