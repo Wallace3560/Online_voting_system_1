@@ -19,6 +19,9 @@
             <h2>Manage Registered Voters</h2>
             <p>Edit voter records and reject voters from a dedicated management page.</p>
             <p>Signed in as role: <strong><?php echo htmlspecialchars($admin_role ?? 'super_admin'); ?></strong></p>
+            <div style="margin-top: 10px;">
+                <a href="admin_logout.php" class="btn btn-danger">Admin Logout</a>
+            </div>
         </div>
         <div class="card-body">
             <?php if ($error): ?>

@@ -19,6 +19,9 @@
             <h2><?php echo htmlspecialchars($title); ?></h2>
             <p>Search and review records quickly from one page.</p>
             <p>Signed in as role: <strong><?php echo htmlspecialchars($admin_role ?? 'super_admin'); ?></strong></p>
+            <div style="margin-top: 10px;">
+                <a href="admin_logout.php" class="btn btn-danger">Admin Logout</a>
+            </div>
         </div>
         <div class="card-body">
             <?php if (!empty($error)): ?>

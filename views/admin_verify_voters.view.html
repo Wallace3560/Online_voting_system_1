@@ -19,6 +19,9 @@
             <h2>Admin Verification Dashboard</h2>
             <p>Manage voter verification, election status, candidates, and publication of results.</p>
             <p>Signed in as role: <strong><?php echo htmlspecialchars($admin_role ?? 'super_admin'); ?></strong></p>
+            <div style="margin-top: 10px;">
+                <a href="admin_logout.php" class="btn btn-danger">Admin Logout</a>
+            </div>
         </div>
         <div class="card-body">
             <?php if ($error): ?>

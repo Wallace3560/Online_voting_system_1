@@ -19,6 +19,9 @@
             <h2>Election Officer Dashboard</h2>
             <p>Operational actions for verification, candidate setup, and manual vote intake.</p>
             <p>Signed in as role: <strong><?php echo htmlspecialchars($admin_role ?? 'election_officer'); ?></strong></p>
+            <div style="margin-top: 10px;">
+                <a href="admin_logout.php" class="btn btn-danger">Admin Logout</a>
+            </div>
         </div>
         <div class="card-body">
             <?php if ($error): ?>
