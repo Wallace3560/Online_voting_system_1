@@ -10,6 +10,7 @@ requireAdminAuth();
 
 $admin_role = (string)($_SESSION['admin_role'] ?? 'super_admin');
 $can_manage = canManageElection($admin_role);
+$can_verify_voters = canVerifyVoters($admin_role);
 
 $message = '';
 $error = '';
@@ -20,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     $action = sanitize($_POST['action'] ?? '');
-    $admin_actions = ['update_voter', 'force_reject_voter', 'update_candidate', 'mark_candidate_deceased'];
+    $admin_actions = ['update_voter', 'force_reject_voter', 'update_candidate', 'mark_candidate_deceased', 'approve_voter', 'reject_voter', 'request_voter_corrections'];
 
     if ($error === '' && in_array($action, $admin_actions, true) && !$can_manage) {
         $error = 'Your role does not have permission to perform this action.';
@@ -63,6 +64,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             ]);
         } else {
             $error = 'Failed to reject voter.';
+        }
+    } elseif ($error === '' && $action === 'approve_voter') {
+        if (!$can_verify_voters) {
+            $error = 'Only super-admin and sub-admin roles can verify voters.';
+        } else {
+            $voter_id = (int)($_POST['voter_id'] ?? 0);
+            if ($voter_id <= 0) {
+                $error = 'Invalid voter selected for approval.';
+            } elseif (verifyVoter($voter_id, (int)$_SESSION['admin_id'], 'approve', null)) {
+                $message = 'Voter approved successfully.';
+                logAuditEvent('admin', (int)$_SESSION['admin_id'], 'voter_approved_from_records_page', [
+                    'voter_id' => $voter_id
+                ]);
+            } else {
+                $error = 'Failed to approve voter.';
+            }
+        }
+    } elseif ($error === '' && $action === 'reject_voter') {
+        if (!$can_verify_voters) {
+            $error = 'Only super-admin and sub-admin roles can verify voters.';
+        } else {
+            $voter_id = (int)($_POST['voter_id'] ?? 0);
+            $rejection_reason = sanitize($_POST['rejection_reason'] ?? 'Rejected by admin after review.');
+            if ($voter_id <= 0) {
+                $error = 'Invalid voter selected for rejection.';
+            } elseif (verifyVoter($voter_id, (int)$_SESSION['admin_id'], 'reject', $rejection_reason)) {
+                $message = 'Voter rejected successfully.';
+                logAuditEvent('admin', (int)$_SESSION['admin_id'], 'voter_rejected_from_records_page', [
+                    'voter_id' => $voter_id,
+                    'rejection_reason' => $rejection_reason
+                ]);
+            } else {
+                $error = 'Failed to reject voter.';
+            }
+        }
+    } elseif ($error === '' && $action === 'request_voter_corrections') {
+        if (!$can_verify_voters) {
+            $error = 'Only super-admin and sub-admin roles can request voter corrections.';
+        } else {
+            $voter_id = (int)($_POST['voter_id'] ?? 0);
+            $request_note = sanitize($_POST['request_note'] ?? 'Please correct your submitted details and upload clear ID photos.');
+            if ($voter_id <= 0) {
+                $error = 'Invalid voter selected for correction request.';
+            } else {
+                $correction_result = requestVoterVerificationCorrections($voter_id, (int)$_SESSION['admin_id'], $request_note);
+                if (!empty($correction_result['ok'])) {
+                    $message = (string)$correction_result['message'];
+                    logAuditEvent('admin', (int)$_SESSION['admin_id'], 'voter_correction_requested_from_records_page', [
+                        'voter_id' => $voter_id,
+                        'request_note' => $request_note,
+                        'email_sent' => !empty($correction_result['email_sent']) ? 1 : 0
+                    ]);
+                } else {
+                    $error = (string)($correction_result['message'] ?? 'Failed to request corrections from voter.');
+                }
+            }
         }
     } elseif ($error === '' && $action === 'update_candidate') {
         $candidate_id = (int)($_POST['candidate_id'] ?? 0);

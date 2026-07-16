@@ -38,8 +38,8 @@ if ($conn && $_SERVER['REQUEST_METHOD'] == 'POST') {
     
     if ($error === '' && ($national_id === '' || $full_name === '' || $email === '' || $phone === '' || $password === '' || $confirm_password === '' || $dob === '')) {
         $error = 'National ID, full name, email, phone, date of birth, and passwords are required.';
-    } elseif ($error === '' && !preg_match('/^\d{8}$/', $national_id)) {
-        $error = 'National ID must be exactly 8 digits.';
+    } elseif ($error === '' && !preg_match('/^\d+$/', $national_id)) {
+        $error = 'National ID must contain digits only.';
     } elseif ($error === '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = 'Please provide a valid email address.';
     } elseif ($error === '' && !preg_match('/^\+?[0-9]{9,15}$/', $phone)) {

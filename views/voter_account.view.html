@@ -19,6 +19,9 @@
         <div class="card-header">
             <h2>My Voter Account</h2>
             <p>Request profile changes for admin approval. National ID cannot be changed.</p>
+            <?php if (!empty($is_token_flow)): ?>
+                <p style="font-size: 12px; margin-top: 5px;">You opened an admin correction link. Submit corrected details below, including updated ID photos if needed.</p>
+            <?php endif; ?>
         </div>
         <div class="card-body">
             <?php if ($error): ?>
@@ -28,10 +31,13 @@
                 <div class="alert alert-success"><?php echo htmlspecialchars($message); ?></div>
             <?php endif; ?>
 
-            <form method="POST" action="voter_account.php" id="profileUpdateForm">
+            <form method="POST" action="voter_account.php<?php echo (!empty($correction_token) && !empty($is_token_flow)) ? '?correction_token=' . urlencode($correction_token) : ''; ?>" id="profileUpdateForm" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
                 <input type="hidden" name="action" value="request_profile_update">
                 <input type="hidden" name="update_reason" id="update_reason" value="">
+                <?php if (!empty($correction_token) && !empty($is_token_flow)): ?>
+                    <input type="hidden" name="correction_token" value="<?php echo htmlspecialchars($correction_token); ?>">
+                <?php endif; ?>
 
                 <div class="form-row">
                     <div class="form-group">
@@ -98,9 +104,24 @@
                     </div>
                 </div>
 
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Upload Corrected National ID Front (optional)</label>
+                        <input type="file" name="national_id_front" accept="image/jpeg,image/png,image/webp">
+                        <small style="color:#5c6f60; font-size:12px;">Upload only if admin asked for clearer/correct ID front image.</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Upload Corrected National ID Back (optional)</label>
+                        <input type="file" name="national_id_back" accept="image/jpeg,image/png,image/webp">
+                        <small style="color:#5c6f60; font-size:12px;">Upload only if admin asked for clearer/correct ID back image.</small>
+                    </div>
+                </div>
+
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 8px;">
                     <button type="submit" class="btn btn-primary" id="requestUpdateBtn">Update Details (Request Approval)</button>
-                    <a href="voter_logout.php" class="btn btn-danger">Logout</a>
+                    <?php if (empty($is_token_flow)): ?>
+                        <a href="voter_logout.php" class="btn btn-danger">Logout</a>
+                    <?php endif; ?>
                 </div>
             </form>
 
@@ -164,14 +185,23 @@
     var reasonField = document.getElementById('update_reason');
     var submitBtn = document.getElementById('requestUpdateBtn');
 
+    var isTokenFlow = <?php echo !empty($is_token_flow) ? 'true' : 'false'; ?>;
+
     if (form && reasonField && submitBtn) {
         submitBtn.addEventListener('click', function (event) {
             event.preventDefault();
-            var reason = window.prompt('Please provide the reason for changing your details:');
-            if (!reason || !reason.trim()) {
-                window.alert('Reason is required to send your request for admin approval.');
-                return;
+            var reason = '';
+
+            if (isTokenFlow) {
+                reason = 'Details correction requested by admin.';
+            } else {
+                reason = window.prompt('Please provide the reason for changing your details:') || '';
+                if (!reason.trim()) {
+                    window.alert('Reason is required to send your request for admin approval.');
+                    return;
+                }
             }
+
             reasonField.value = reason.trim();
             form.submit();
         });

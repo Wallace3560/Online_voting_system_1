@@ -129,13 +129,19 @@
                                 <td><?php echo htmlspecialchars($voter['national_id']); ?></td>
                                 <td>
                                     <?php if (!empty($voter['national_id_front_path'])): ?>
-                                        <a href="<?php echo htmlspecialchars($voter['national_id_front_path']); ?>" target="_blank" rel="noopener">Front</a>
+                                        <a href="<?php echo htmlspecialchars($voter['national_id_front_path']); ?>" target="_blank" rel="noopener">
+                                            <img src="<?php echo htmlspecialchars($voter['national_id_front_path']); ?>" alt="Front ID" style="width:58px; height:40px; object-fit:cover; border-radius:4px; border:1px solid #d7dfd7; vertical-align:middle; margin-right:6px;">
+                                            Front
+                                        </a>
                                     <?php else: ?>
                                         -
                                     <?php endif; ?>
                                     |
                                     <?php if (!empty($voter['national_id_back_path'])): ?>
-                                        <a href="<?php echo htmlspecialchars($voter['national_id_back_path']); ?>" target="_blank" rel="noopener">Back</a>
+                                        <a href="<?php echo htmlspecialchars($voter['national_id_back_path']); ?>" target="_blank" rel="noopener">
+                                            <img src="<?php echo htmlspecialchars($voter['national_id_back_path']); ?>" alt="Back ID" style="width:58px; height:40px; object-fit:cover; border-radius:4px; border:1px solid #d7dfd7; vertical-align:middle; margin-right:6px;">
+                                            Back
+                                        </a>
                                     <?php else: ?>
                                         -
                                     <?php endif; ?>
@@ -165,12 +171,25 @@
                                             </select>
                                             <button class="btn btn-secondary" type="submit">Save</button>
                                         </form>
+                                        <form method="POST" action="admin_manage_voters.php" style="display:grid; gap:6px; margin-bottom:8px;">
+                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                            <input type="hidden" name="action" value="approve_voter">
+                                            <input type="hidden" name="voter_id" value="<?php echo (int)$voter['voter_id']; ?>">
+                                            <button class="btn btn-primary" type="submit">Approve Voter</button>
+                                        </form>
                                         <form method="POST" action="admin_manage_voters.php" style="display:grid; gap:6px;">
                                             <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
                                             <input type="hidden" name="action" value="force_reject_voter">
                                             <input type="hidden" name="voter_id" value="<?php echo (int)$voter['voter_id']; ?>">
                                             <input type="text" name="rejection_reason" placeholder="Rejection reason" value="<?php echo htmlspecialchars($voter['rejection_reason'] ?? ''); ?>">
                                             <button class="btn btn-danger" type="submit">Reject Voter</button>
+                                        </form>
+                                        <form method="POST" action="admin_manage_voters.php" style="display:grid; gap:6px; margin-top:8px;">
+                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                            <input type="hidden" name="action" value="request_voter_corrections">
+                                            <input type="hidden" name="voter_id" value="<?php echo (int)$voter['voter_id']; ?>">
+                                            <textarea name="request_note" rows="3" required placeholder="Type what the voter should correct before approval.">Please correct your submitted details and upload clear ID photos.</textarea>
+                                            <button class="btn btn-secondary" type="submit">Request Detail Corrections</button>
                                         </form>
                                     </div>
                                     <?php else: ?>

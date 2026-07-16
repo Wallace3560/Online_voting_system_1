@@ -494,6 +494,57 @@ function sendProfileChangeDecisionEmailToVoter($email, $decision, $decision_note
     return sendSystemEmail((string)$email, $subject, $message);
 }
 
+function sendVoterVerificationDecisionEmail($email, $decision, $decision_note = '') {
+    $normalized_decision = strtolower(trim((string)$decision));
+    if ($normalized_decision !== 'approved' && $normalized_decision !== 'rejected') {
+        return false;
+    }
+
+    $subject = $normalized_decision === 'approved'
+        ? 'Voter Verification Approved'
+        : 'Voter Verification Rejected';
+
+    $message = "Hello,\n\n";
+    if ($normalized_decision === 'approved') {
+        $message .= "Your voter registration has been approved. You can now sign in and vote when the election window is open.\n\n";
+    } else {
+        $message .= "Your voter registration has been rejected after admin review.\n\n";
+    }
+
+    if ($decision_note !== '') {
+        $message .= "Admin Note: " . $decision_note . "\n\n";
+    }
+
+    $message .= "Visit this link to view your account status:\n"
+        . getAppBaseUrl() . "/check_verification.php\n\n"
+        . "Online Voting System";
+
+    return sendSystemEmail((string)$email, $subject, $message);
+}
+
+function sendVoterCorrectionRequestEmail($email, $token, $request_note = '') {
+    $correction_link = getAppBaseUrl() . '/voter_account.php?correction_token=' . urlencode((string)$token);
+    $subject = 'Action Required: Update Your Voter Details';
+    $message = "Hello,\n\n"
+        . "An administrator has requested corrections to your voter details before approval.\n\n";
+
+    if ($request_note !== '') {
+        $message .= "Admin Request: " . (string)$request_note . "\n\n";
+    }
+
+    $message .= "Use the secure link below to submit the corrected details:\n"
+        . $correction_link . "\n\n"
+        . "This link expires in 72 hours.\n\n"
+        . "Online Voting System";
+
+    $sent = sendSystemEmail((string)$email, $subject, $message);
+    if (!$sent) {
+        error_log('Correction request email delivery failed for ' . $email . '. Link: ' . $correction_link);
+    }
+
+    return $sent;
+}
+
 function hashResetToken($token) {
     return hash('sha256', (string)$token);
 }
@@ -857,12 +908,18 @@ function verifyVoter($voter_id, $admin_id, $action, $rejection_reason = null) {
         return false;
     }
 
+    $voter = getVoterById((int)$voter_id);
+    if (!$voter) {
+        return false;
+    }
+
     $status = ($action === 'approve') ? 'verified' : 'rejected';
     $verified_at = date('Y-m-d H:i:s');
     $admin_verified = ($action === 'approve') ? 1 : 0;
 
     $query = "UPDATE voters
-              SET admin_verified = ?, verification_status = ?, verified_by = ?, verified_at = ?, rejection_reason = ?
+              SET admin_verified = ?, verification_status = ?, verified_by = ?, verified_at = ?, rejection_reason = ?,
+                  profile_correction_token_hash = NULL, profile_correction_expires_at = NULL
               WHERE voter_id = ?";
 
     $stmt = mysqli_prepare($conn, $query);
@@ -870,7 +927,17 @@ function verifyVoter($voter_id, $admin_id, $action, $rejection_reason = null) {
         return false;
     }
     mysqli_stmt_bind_param($stmt, "isissi", $admin_verified, $status, $admin_id, $verified_at, $rejection_reason, $voter_id);
-    return mysqli_stmt_execute($stmt);
+    $updated = mysqli_stmt_execute($stmt);
+    if (!$updated) {
+        return false;
+    }
+
+    $voter_email = (string)($voter['email'] ?? '');
+    if ($voter_email !== '' && filter_var($voter_email, FILTER_VALIDATE_EMAIL)) {
+        sendVoterVerificationDecisionEmail($voter_email, $action === 'approve' ? 'approved' : 'rejected', (string)($rejection_reason ?? ''));
+    }
+
+    return true;
 }
 
 function canLogin($voter_id) {
@@ -944,6 +1011,105 @@ function getVoterById($voter_id) {
     return $result ? mysqli_fetch_assoc($result) : null;
 }
 
+function getVoterByProfileCorrectionToken($token) {
+    global $conn;
+    if (!hasDbConnection()) {
+        return null;
+    }
+
+    $token_hash = hashResetToken((string)$token);
+    $query = "SELECT * FROM voters
+              WHERE profile_correction_token_hash = ?
+                AND profile_correction_expires_at IS NOT NULL
+                AND profile_correction_expires_at >= NOW()
+              LIMIT 1";
+    $stmt = mysqli_prepare($conn, $query);
+    if (!$stmt) {
+        return null;
+    }
+
+    mysqli_stmt_bind_param($stmt, "s", $token_hash);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    return $result ? mysqli_fetch_assoc($result) : null;
+}
+
+function clearVoterProfileCorrectionToken($voter_id) {
+    global $conn;
+    if (!hasDbConnection()) {
+        return false;
+    }
+
+    $query = "UPDATE voters
+              SET profile_correction_token_hash = NULL,
+                  profile_correction_expires_at = NULL,
+                  profile_correction_note = NULL,
+                  profile_correction_requested_at = NULL
+              WHERE voter_id = ?
+              LIMIT 1";
+    $stmt = mysqli_prepare($conn, $query);
+    if (!$stmt) {
+        return false;
+    }
+
+    mysqli_stmt_bind_param($stmt, "i", $voter_id);
+    return mysqli_stmt_execute($stmt);
+}
+
+function requestVoterVerificationCorrections($voter_id, $admin_id, $request_note = '') {
+    global $conn;
+    if (!hasDbConnection()) {
+        return ['ok' => false, 'message' => 'Database is unavailable.'];
+    }
+
+    $voter = getVoterById((int)$voter_id);
+    if (!$voter) {
+        return ['ok' => false, 'message' => 'Voter not found.'];
+    }
+
+    $email = trim((string)($voter['email'] ?? ''));
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return ['ok' => false, 'message' => 'Voter email is missing or invalid.'];
+    }
+
+    $token = generateVerificationToken();
+    $token_hash = hashResetToken($token);
+    $expires_at = date('Y-m-d H:i:s', strtotime('+72 hours'));
+    $status = 'pending';
+    $admin_verified = 0;
+    $review_note = $request_note !== '' ? $request_note : 'Please correct your submitted details and re-upload clear ID photos.';
+
+    $query = "UPDATE voters
+              SET profile_correction_token_hash = ?,
+                  profile_correction_expires_at = ?,
+                  profile_correction_note = ?,
+                  profile_correction_requested_at = NOW(),
+                  verification_status = ?,
+                  admin_verified = ?,
+                  verified_by = ?,
+                  verified_at = NULL
+              WHERE voter_id = ?
+              LIMIT 1";
+    $stmt = mysqli_prepare($conn, $query);
+    if (!$stmt) {
+        return ['ok' => false, 'message' => 'Could not save correction request.'];
+    }
+
+    mysqli_stmt_bind_param($stmt, "ssssiii", $token_hash, $expires_at, $review_note, $status, $admin_verified, $admin_id, $voter_id);
+    if (!mysqli_stmt_execute($stmt)) {
+        return ['ok' => false, 'message' => 'Could not save correction request.'];
+    }
+
+    $email_sent = sendVoterCorrectionRequestEmail($email, $token, $review_note);
+    return [
+        'ok' => true,
+        'message' => $email_sent
+            ? 'Correction request sent to voter successfully.'
+            : 'Correction request saved, but email delivery failed. Check mail setup/logs.',
+        'email_sent' => $email_sent
+    ];
+}
+
 function hasPendingVoterProfileChangeRequest($voter_id) {
     global $conn;
     if (!hasDbConnection()) {
@@ -982,6 +1148,8 @@ function createVoterProfileChangeRequest($voter_id, $requested_data, $reason) {
     $county_id = (int)($requested_data['county_id'] ?? 0);
     $constituency_id = (int)($requested_data['constituency_id'] ?? 0);
     $ward_id = (int)($requested_data['ward_id'] ?? 0);
+    $national_id_front_path = sanitize($requested_data['national_id_front_path'] ?? '');
+    $national_id_back_path = sanitize($requested_data['national_id_back_path'] ?? '');
 
     if ($full_name === '' || $email === '' || $phone === '' || $date_of_birth === '' || $county_id <= 0 || $constituency_id <= 0 || $ward_id <= 0) {
         return ['ok' => false, 'message' => 'All profile fields are required.'];
@@ -1014,7 +1182,9 @@ function createVoterProfileChangeRequest($voter_id, $requested_data, $reason) {
         'date_of_birth' => $date_of_birth,
         'county_id' => $county_id,
         'constituency_id' => $constituency_id,
-        'ward_id' => $ward_id
+        'ward_id' => $ward_id,
+        'national_id_front_path' => $national_id_front_path,
+        'national_id_back_path' => $national_id_back_path
     ];
     $requested_json = json_encode($payload);
     if (!is_string($requested_json) || $requested_json === '') {
@@ -1158,6 +1328,8 @@ function approveVoterProfileChangeRequest($request_id, $admin_id, $decision_note
     $county_id = (int)($requested['county_id'] ?? 0);
     $constituency_id = (int)($requested['constituency_id'] ?? 0);
     $ward_id = (int)($requested['ward_id'] ?? 0);
+    $national_id_front_path = sanitize($requested['national_id_front_path'] ?? '');
+    $national_id_back_path = sanitize($requested['national_id_back_path'] ?? '');
 
     if ($full_name === '' || $email === '' || $phone === '' || $date_of_birth === '' || $county_id <= 0 || $constituency_id <= 0 || $ward_id <= 0) {
         return ['ok' => false, 'message' => 'Requested details are incomplete.'];
@@ -1208,14 +1380,31 @@ function approveVoterProfileChangeRequest($request_id, $admin_id, $decision_note
         }
 
         $update_query = "UPDATE voters
-                         SET full_name = ?, email = ?, phone = ?, county_id = ?, constituency_id = ?, ward_id = ?, date_of_birth = ?
+                         SET full_name = ?, email = ?, phone = ?, county_id = ?, constituency_id = ?, ward_id = ?, date_of_birth = ?,
+                             national_id_front_path = IF(? = '', national_id_front_path, ?),
+                             national_id_back_path = IF(? = '', national_id_back_path, ?)
                          WHERE voter_id = ?
                          LIMIT 1";
         $update_stmt = mysqli_prepare($conn, $update_query);
         if (!$update_stmt) {
             throw new Exception('Could not update voter details.');
         }
-        mysqli_stmt_bind_param($update_stmt, "sssiiisi", $full_name, $email, $phone, $county_id, $constituency_id, $ward_id, $date_of_birth, $voter_id);
+        mysqli_stmt_bind_param(
+            $update_stmt,
+            "sssiiisssssi",
+            $full_name,
+            $email,
+            $phone,
+            $county_id,
+            $constituency_id,
+            $ward_id,
+            $date_of_birth,
+            $national_id_front_path,
+            $national_id_front_path,
+            $national_id_back_path,
+            $national_id_back_path,
+            $voter_id
+        );
         if (!mysqli_stmt_execute($update_stmt)) {
             throw new Exception('Could not update voter details.');
         }
@@ -1863,6 +2052,26 @@ function ensureSecuritySchema() {
     $column_check = mysqli_query($conn, "SHOW COLUMNS FROM voters LIKE 'national_id_back_path'");
     if ($column_check && mysqli_num_rows($column_check) === 0) {
         mysqli_query($conn, "ALTER TABLE voters ADD COLUMN national_id_back_path VARCHAR(255) NULL AFTER national_id_front_path");
+    }
+
+    $column_check = mysqli_query($conn, "SHOW COLUMNS FROM voters LIKE 'profile_correction_token_hash'");
+    if ($column_check && mysqli_num_rows($column_check) === 0) {
+        mysqli_query($conn, "ALTER TABLE voters ADD COLUMN profile_correction_token_hash VARCHAR(64) NULL AFTER national_id_back_path");
+    }
+
+    $column_check = mysqli_query($conn, "SHOW COLUMNS FROM voters LIKE 'profile_correction_expires_at'");
+    if ($column_check && mysqli_num_rows($column_check) === 0) {
+        mysqli_query($conn, "ALTER TABLE voters ADD COLUMN profile_correction_expires_at DATETIME NULL AFTER profile_correction_token_hash");
+    }
+
+    $column_check = mysqli_query($conn, "SHOW COLUMNS FROM voters LIKE 'profile_correction_note'");
+    if ($column_check && mysqli_num_rows($column_check) === 0) {
+        mysqli_query($conn, "ALTER TABLE voters ADD COLUMN profile_correction_note TEXT NULL AFTER profile_correction_expires_at");
+    }
+
+    $column_check = mysqli_query($conn, "SHOW COLUMNS FROM voters LIKE 'profile_correction_requested_at'");
+    if ($column_check && mysqli_num_rows($column_check) === 0) {
+        mysqli_query($conn, "ALTER TABLE voters ADD COLUMN profile_correction_requested_at DATETIME NULL AFTER profile_correction_note");
     }
 
     $trigger_check = mysqli_prepare($conn, "SELECT 1

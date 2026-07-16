@@ -66,9 +66,13 @@
                             <th>National ID</th>
                             <th>ID Documents</th>
                             <th>Email</th>
+                            <th>Phone</th>
                             <th>County</th>
                             <th>Constituency</th>
                             <th>Ward</th>
+                            <th>DOB</th>
+                            <th>Registered</th>
+                            <th>Manage</th>
                         </tr>
                     <?php else: ?>
                         <tr>
@@ -87,7 +91,7 @@
                     <tbody>
                     <?php if (empty($rows)): ?>
                         <tr>
-                            <td colspan="8">No records found for your search.</td>
+                            <td colspan="11">No records found for your search.</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($rows as $row): ?>
@@ -142,21 +146,68 @@
                                     <td><?php echo htmlspecialchars($row['national_id'] ?? '-'); ?></td>
                                     <td>
                                         <?php if (!empty($row['national_id_front_path'])): ?>
-                                            <a href="<?php echo htmlspecialchars($row['national_id_front_path']); ?>" target="_blank" rel="noopener">Front</a>
+                                            <a href="<?php echo htmlspecialchars($row['national_id_front_path']); ?>" target="_blank" rel="noopener">
+                                                <img src="<?php echo htmlspecialchars($row['national_id_front_path']); ?>" alt="Front ID" style="width:58px; height:40px; object-fit:cover; border-radius:4px; border:1px solid #d7dfd7; vertical-align:middle; margin-right:6px;">
+                                                Front
+                                            </a>
                                         <?php else: ?>
                                             -
                                         <?php endif; ?>
                                         |
                                         <?php if (!empty($row['national_id_back_path'])): ?>
-                                            <a href="<?php echo htmlspecialchars($row['national_id_back_path']); ?>" target="_blank" rel="noopener">Back</a>
+                                            <a href="<?php echo htmlspecialchars($row['national_id_back_path']); ?>" target="_blank" rel="noopener">
+                                                <img src="<?php echo htmlspecialchars($row['national_id_back_path']); ?>" alt="Back ID" style="width:58px; height:40px; object-fit:cover; border-radius:4px; border:1px solid #d7dfd7; vertical-align:middle; margin-right:6px;">
+                                                Back
+                                            </a>
                                         <?php else: ?>
                                             -
                                         <?php endif; ?>
                                     </td>
                                     <td><?php echo htmlspecialchars($row['email'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['phone'] ?? '-'); ?></td>
                                     <td><?php echo htmlspecialchars($row['county_name'] ?? '-'); ?></td>
                                     <td><?php echo htmlspecialchars($row['constituency_name'] ?? '-'); ?></td>
                                     <td><?php echo htmlspecialchars($row['ward_name'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['date_of_birth'] ?? '-'); ?></td>
+                                    <td><?php echo htmlspecialchars($row['registration_date'] ?? '-'); ?></td>
+                                    <td>
+                                        <?php if (!empty($can_manage)): ?>
+                                            <?php $pending_manage_id = 'manage-pending-' . (int)($row['voter_id'] ?? 0); ?>
+                                            <button type="button" class="btn btn-secondary open-manage-btn" data-target="<?php echo htmlspecialchars($pending_manage_id); ?>">Review</button>
+                                            <div id="<?php echo htmlspecialchars($pending_manage_id); ?>" class="manage-inline-box" style="display:none; margin-top:8px; border:1px solid #d7dfd7; border-radius:8px; padding:8px; background:#f8fbf8;">
+                                                <div style="font-size:0.85rem; margin-bottom:8px; color:#3e4d40;">
+                                                    <strong>Voter:</strong> <?php echo htmlspecialchars($row['full_name'] ?? '-'); ?><br>
+                                                    <strong>Email:</strong> <?php echo htmlspecialchars($row['email'] ?? '-'); ?><br>
+                                                    <strong>National ID:</strong> <?php echo htmlspecialchars($row['national_id'] ?? '-'); ?>
+                                                </div>
+
+                                                <form method="POST" action="admin_records.php?type=pending<?php echo $query !== '' ? '&q=' . urlencode($query) : ''; ?>" style="display:grid; gap:6px; margin-bottom:8px;">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                                    <input type="hidden" name="action" value="approve_voter">
+                                                    <input type="hidden" name="voter_id" value="<?php echo (int)($row['voter_id'] ?? 0); ?>">
+                                                    <button class="btn btn-primary" type="submit">Approve Voter</button>
+                                                </form>
+
+                                                <form method="POST" action="admin_records.php?type=pending<?php echo $query !== '' ? '&q=' . urlencode($query) : ''; ?>" style="display:grid; gap:6px; margin-bottom:8px;">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                                    <input type="hidden" name="action" value="reject_voter">
+                                                    <input type="hidden" name="voter_id" value="<?php echo (int)($row['voter_id'] ?? 0); ?>">
+                                                    <input type="text" name="rejection_reason" value="<?php echo htmlspecialchars($row['rejection_reason'] ?? 'Rejected by admin after review.'); ?>" required>
+                                                    <button class="btn btn-danger" type="submit">Reject Voter (Send Email)</button>
+                                                </form>
+
+                                                <form method="POST" action="admin_records.php?type=pending<?php echo $query !== '' ? '&q=' . urlencode($query) : ''; ?>" style="display:grid; gap:6px;">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                                    <input type="hidden" name="action" value="request_voter_corrections">
+                                                    <input type="hidden" name="voter_id" value="<?php echo (int)($row['voter_id'] ?? 0); ?>">
+                                                    <textarea name="request_note" rows="3" required placeholder="Type what the voter should correct before approval.">Please correct your submitted details and upload clear ID photos.</textarea>
+                                                    <button class="btn btn-secondary" type="submit">Request Detail Corrections (Send Email Link)</button>
+                                                </form>
+                                            </div>
+                                        <?php else: ?>
+                                            <span class="status-badge status-warning">Read-only role</span>
+                                        <?php endif; ?>
+                                    </td>
                                 </tr>
                             <?php else: ?>
                                 <tr>
