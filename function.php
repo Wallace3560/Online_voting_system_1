@@ -1126,6 +1126,190 @@ function hasPendingVoterProfileChangeRequest($voter_id) {
     return $result && mysqli_num_rows($result) > 0;
 }
 
+function isValidLocationHierarchy($county_id, $constituency_id, $ward_id) {
+    global $conn;
+    if (!hasDbConnection()) {
+        return false;
+    }
+
+    $county_id = (int)$county_id;
+    $constituency_id = (int)$constituency_id;
+    $ward_id = (int)$ward_id;
+    if ($county_id <= 0 || $constituency_id <= 0 || $ward_id <= 0) {
+        return false;
+    }
+
+    $query = "SELECT 1
+              FROM constituencies c
+              JOIN wards w ON w.constituency_id = c.constituency_id
+              WHERE c.constituency_id = ?
+                AND c.county_id = ?
+                AND w.ward_id = ?
+              LIMIT 1";
+    $stmt = mysqli_prepare($conn, $query);
+    if (!$stmt) {
+        return false;
+    }
+
+    mysqli_stmt_bind_param($stmt, "iii", $constituency_id, $county_id, $ward_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    return $result && mysqli_num_rows($result) > 0;
+}
+
+function getLocationNamesCache() {
+    global $conn;
+    static $cache = null;
+
+    if ($cache !== null) {
+        return $cache;
+    }
+
+    $cache = [
+        'counties' => [],
+        'constituencies' => [],
+        'wards' => []
+    ];
+
+    if (!hasDbConnection()) {
+        return $cache;
+    }
+
+    $result = mysqli_query($conn, "SELECT county_id, county_name FROM counties");
+    if ($result) {
+        while ($row = mysqli_fetch_assoc($result)) {
+            $cache['counties'][(int)$row['county_id']] = (string)$row['county_name'];
+        }
+    }
+
+    $result = mysqli_query($conn, "SELECT constituency_id, constituency_name FROM constituencies");
+    if ($result) {
+        while ($row = mysqli_fetch_assoc($result)) {
+            $cache['constituencies'][(int)$row['constituency_id']] = (string)$row['constituency_name'];
+        }
+    }
+
+    $result = mysqli_query($conn, "SELECT ward_id, ward_name FROM wards");
+    if ($result) {
+        while ($row = mysqli_fetch_assoc($result)) {
+            $cache['wards'][(int)$row['ward_id']] = (string)$row['ward_name'];
+        }
+    }
+
+    return $cache;
+}
+
+function getArchivedLocationSnapshotByChangeRequestId($change_request_id) {
+    global $conn;
+    static $cache = [];
+
+    $change_request_id = (int)$change_request_id;
+    if ($change_request_id <= 0) {
+        return null;
+    }
+
+    if (array_key_exists($change_request_id, $cache)) {
+        return $cache[$change_request_id];
+    }
+
+    if (!hasDbConnection()) {
+        $cache[$change_request_id] = null;
+        return null;
+    }
+
+    $query = "SELECT county_id, constituency_id, ward_id
+              FROM previuos_user_data
+              WHERE change_request_id = ?
+              ORDER BY archive_id DESC
+              LIMIT 1";
+    $stmt = mysqli_prepare($conn, $query);
+    if (!$stmt) {
+        $cache[$change_request_id] = null;
+        return null;
+    }
+
+    mysqli_stmt_bind_param($stmt, "i", $change_request_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = $result ? mysqli_fetch_assoc($result) : null;
+    if (!$row) {
+        $cache[$change_request_id] = null;
+        return null;
+    }
+
+    $location_cache = getLocationNamesCache();
+    $county_id = (int)($row['county_id'] ?? 0);
+    $constituency_id = (int)($row['constituency_id'] ?? 0);
+    $ward_id = (int)($row['ward_id'] ?? 0);
+
+    $cache[$change_request_id] = [
+        'previous_county_id' => $county_id,
+        'previous_constituency_id' => $constituency_id,
+        'previous_ward_id' => $ward_id,
+        'previous_county_name' => (string)($location_cache['counties'][$county_id] ?? '-'),
+        'previous_constituency_name' => (string)($location_cache['constituencies'][$constituency_id] ?? '-'),
+        'previous_ward_name' => (string)($location_cache['wards'][$ward_id] ?? '-')
+    ];
+
+    return $cache[$change_request_id];
+}
+
+function enrichProfileChangeRequestRows($rows) {
+    $rows = is_array($rows) ? $rows : [];
+    $location_cache = getLocationNamesCache();
+
+    foreach ($rows as $index => $row) {
+        $decoded = json_decode((string)($row['requested_data'] ?? ''), true);
+        $requested = is_array($decoded) ? $decoded : [];
+
+        $current_county_id = (int)($row['current_county_id'] ?? $row['county_id'] ?? 0);
+        $current_constituency_id = (int)($row['current_constituency_id'] ?? $row['constituency_id'] ?? 0);
+        $current_ward_id = (int)($row['current_ward_id'] ?? $row['ward_id'] ?? 0);
+
+        $requested_county_id = (int)($requested['county_id'] ?? 0);
+        $requested_constituency_id = (int)($requested['constituency_id'] ?? 0);
+        $requested_ward_id = (int)($requested['ward_id'] ?? 0);
+
+        $rows[$index]['requested_data_parsed'] = $requested;
+        $rows[$index]['current_county_id'] = $current_county_id;
+        $rows[$index]['current_constituency_id'] = $current_constituency_id;
+        $rows[$index]['current_ward_id'] = $current_ward_id;
+
+        $rows[$index]['current_county_name'] = (string)($row['current_county_name'] ?? $location_cache['counties'][$current_county_id] ?? '-');
+        $rows[$index]['current_constituency_name'] = (string)($row['current_constituency_name'] ?? $location_cache['constituencies'][$current_constituency_id] ?? '-');
+        $rows[$index]['current_ward_name'] = (string)($row['current_ward_name'] ?? $location_cache['wards'][$current_ward_id] ?? '-');
+
+        $rows[$index]['requested_county_name'] = (string)($location_cache['counties'][$requested_county_id] ?? '-');
+        $rows[$index]['requested_constituency_name'] = (string)($location_cache['constituencies'][$requested_constituency_id] ?? '-');
+        $rows[$index]['requested_ward_name'] = (string)($location_cache['wards'][$requested_ward_id] ?? '-');
+
+        $rows[$index]['is_location_change'] = (
+            $requested_county_id > 0
+            && $requested_constituency_id > 0
+            && $requested_ward_id > 0
+            && (
+                $requested_county_id !== $current_county_id
+                || $requested_constituency_id !== $current_constituency_id
+                || $requested_ward_id !== $current_ward_id
+            )
+        );
+
+        $snapshot = getArchivedLocationSnapshotByChangeRequestId((int)($row['request_id'] ?? 0));
+        if (is_array($snapshot)) {
+            $rows[$index] = array_merge($rows[$index], $snapshot);
+        } else {
+            $rows[$index]['previous_county_id'] = $current_county_id;
+            $rows[$index]['previous_constituency_id'] = $current_constituency_id;
+            $rows[$index]['previous_ward_id'] = $current_ward_id;
+            $rows[$index]['previous_county_name'] = $rows[$index]['current_county_name'];
+            $rows[$index]['previous_constituency_name'] = $rows[$index]['current_constituency_name'];
+            $rows[$index]['previous_ward_name'] = $rows[$index]['current_ward_name'];
+        }
+    }
+
+    return $rows;
+}
+
 function createVoterProfileChangeRequest($voter_id, $requested_data, $reason) {
     global $conn;
     if (!hasDbConnection()) {
@@ -1165,6 +1349,10 @@ function createVoterProfileChangeRequest($voter_id, $requested_data, $reason) {
 
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_of_birth) || strtotime($date_of_birth) === false || strtotime($date_of_birth) > time()) {
         return ['ok' => false, 'message' => 'Please provide a valid date of birth.'];
+    }
+
+    if (!isValidLocationHierarchy($county_id, $constituency_id, $ward_id)) {
+        return ['ok' => false, 'message' => 'Selected county, constituency, and ward do not match.'];
     }
 
     if ($reason === '') {
@@ -1222,14 +1410,63 @@ function createVoterProfileChangeRequest($voter_id, $requested_data, $reason) {
     return ['ok' => true, 'message' => 'Profile update request submitted for admin approval.'];
 }
 
+function createVoterRelocationRequest($voter_id, $county_id, $constituency_id, $ward_id, $reason) {
+    $voter = getVoterById((int)$voter_id);
+    if (!$voter) {
+        return ['ok' => false, 'message' => 'Voter account not found.'];
+    }
+
+    $county_id = (int)$county_id;
+    $constituency_id = (int)$constituency_id;
+    $ward_id = (int)$ward_id;
+    $reason = sanitize($reason);
+
+    if ($county_id <= 0 || $constituency_id <= 0 || $ward_id <= 0) {
+        return ['ok' => false, 'message' => 'Please select county, constituency, and ward.'];
+    }
+
+    if (
+        $county_id === (int)($voter['county_id'] ?? 0)
+        && $constituency_id === (int)($voter['constituency_id'] ?? 0)
+        && $ward_id === (int)($voter['ward_id'] ?? 0)
+    ) {
+        return ['ok' => false, 'message' => 'Selected location is the same as your current voting location.'];
+    }
+
+    $payload = [
+        'full_name' => (string)($voter['full_name'] ?? ''),
+        'email' => (string)($voter['email'] ?? ''),
+        'phone' => (string)($voter['phone'] ?? ''),
+        'date_of_birth' => (string)($voter['date_of_birth'] ?? ''),
+        'county_id' => $county_id,
+        'constituency_id' => $constituency_id,
+        'ward_id' => $ward_id,
+        'national_id_front_path' => '',
+        'national_id_back_path' => ''
+    ];
+
+    $final_reason = $reason !== '' ? $reason : 'Relocation request to change voting location.';
+    return createVoterProfileChangeRequest((int)$voter_id, $payload, $final_reason);
+}
+
 function getVoterProfileChangeRequestsByVoter($voter_id) {
     global $conn;
     if (!hasDbConnection()) {
         return [];
     }
 
-    $query = "SELECT r.*, a.full_name AS reviewed_by_name
+    $query = "SELECT r.*, a.full_name AS reviewed_by_name,
+                     v.county_id AS current_county_id,
+                     v.constituency_id AS current_constituency_id,
+                     v.ward_id AS current_ward_id,
+                     co.county_name AS current_county_name,
+                     cn.constituency_name AS current_constituency_name,
+                     w.ward_name AS current_ward_name
               FROM voter_profile_change_requests r
+              JOIN voters v ON r.voter_id = v.voter_id
+              LEFT JOIN counties co ON v.county_id = co.county_id
+              LEFT JOIN constituencies cn ON v.constituency_id = cn.constituency_id
+              LEFT JOIN wards w ON v.ward_id = w.ward_id
               LEFT JOIN admins a ON r.reviewed_by = a.admin_id
               WHERE r.voter_id = ?
               ORDER BY r.created_at DESC, r.request_id DESC";
@@ -1241,13 +1478,35 @@ function getVoterProfileChangeRequestsByVoter($voter_id) {
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
     $rows = $result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
+    return enrichProfileChangeRequestRows($rows);
+}
 
-    foreach ($rows as $index => $row) {
-        $decoded = json_decode((string)($row['requested_data'] ?? ''), true);
-        $rows[$index]['requested_data_parsed'] = is_array($decoded) ? $decoded : [];
+function getLatestVoterLocationChangeRequest($voter_id) {
+    $rows = getVoterProfileChangeRequestsByVoter((int)$voter_id);
+    foreach ($rows as $row) {
+        if (!empty($row['is_location_change'])) {
+            return $row;
+        }
+    }
+    return null;
+}
+
+function filterRowsByVoterName($rows, $search_term, $field_name = 'voter_name') {
+    $rows = is_array($rows) ? $rows : [];
+    $search_term = strtolower(trim((string)$search_term));
+    if ($search_term === '') {
+        return $rows;
     }
 
-    return $rows;
+    $filtered = [];
+    foreach ($rows as $row) {
+        $name_value = strtolower(trim((string)($row[$field_name] ?? '')));
+        if ($name_value !== '' && strpos($name_value, $search_term) !== false) {
+            $filtered[] = $row;
+        }
+    }
+
+    return $filtered;
 }
 
 function getVoterProfileChangeRequests($status = null) {
@@ -1256,10 +1515,19 @@ function getVoterProfileChangeRequests($status = null) {
         return [];
     }
 
-    $query = "SELECT r.*, v.full_name AS voter_name, v.national_id, v.email AS current_email, v.phone AS current_phone,
+        $query = "SELECT r.*, v.full_name AS voter_name, v.national_id, v.email AS current_email, v.phone AS current_phone,
+                v.county_id AS current_county_id,
+                v.constituency_id AS current_constituency_id,
+                v.ward_id AS current_ward_id,
+                co.county_name AS current_county_name,
+                cn.constituency_name AS current_constituency_name,
+                w.ward_name AS current_ward_name,
                      a.full_name AS reviewed_by_name
               FROM voter_profile_change_requests r
               JOIN voters v ON r.voter_id = v.voter_id
+            LEFT JOIN counties co ON v.county_id = co.county_id
+            LEFT JOIN constituencies cn ON v.constituency_id = cn.constituency_id
+            LEFT JOIN wards w ON v.ward_id = w.ward_id
               LEFT JOIN admins a ON r.reviewed_by = a.admin_id";
 
     $use_status = is_string($status) && $status !== '';
@@ -1278,13 +1546,7 @@ function getVoterProfileChangeRequests($status = null) {
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
     $rows = $result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
-
-    foreach ($rows as $index => $row) {
-        $decoded = json_decode((string)($row['requested_data'] ?? ''), true);
-        $rows[$index]['requested_data_parsed'] = is_array($decoded) ? $decoded : [];
-    }
-
-    return $rows;
+    return enrichProfileChangeRequestRows($rows);
 }
 
 function approveVoterProfileChangeRequest($request_id, $admin_id, $decision_note = '') {
@@ -1333,6 +1595,10 @@ function approveVoterProfileChangeRequest($request_id, $admin_id, $decision_note
 
     if ($full_name === '' || $email === '' || $phone === '' || $date_of_birth === '' || $county_id <= 0 || $constituency_id <= 0 || $ward_id <= 0) {
         return ['ok' => false, 'message' => 'Requested details are incomplete.'];
+    }
+
+    if (!isValidLocationHierarchy($county_id, $constituency_id, $ward_id)) {
+        return ['ok' => false, 'message' => 'Requested county, constituency, and ward do not match.'];
     }
 
     if (isVoterEmailOrPhoneTaken($voter_id, $email, $phone)) {

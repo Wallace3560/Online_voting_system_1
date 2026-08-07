@@ -100,6 +100,7 @@ foreach ($step_tracker as $index => $step) {
 
 $progress = getBallotProgress($voter_id);
 $election_open = isElectionOpen();
+$latest_location_change = getLatestVoterLocationChangeRequest($voter_id);
 $csrf_token = getCsrfToken();
 
 require_once 'views/ballot.view.html';

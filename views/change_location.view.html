@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<!--
+  Overview: Change Location
+  Purpose: Defines the page structure and content for this view.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Change Voting Location</title>
+    <link rel="stylesheet" href="assets/css/views/register.css">
+    <link rel="stylesheet" href="assets/css/global_menu.css">
+    <script src="assets/js/registration.js" defer></script>
+    <script src="assets/js/global_menu.js?v=20260708" defer></script>
+</head>
+<body>
+<div class="main-container">
+    <div class="card" style="max-width: 980px; margin: 0 auto;">
+        <div class="card-header">
+            <h2>Relocation Request</h2>
+            <p>Change county, constituency, and ward after relocation. Admin approval is required before the new voting area is active.</p>
+        </div>
+        <div class="card-body">
+            <?php if ($error): ?>
+                <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+            <?php endif; ?>
+            <?php if ($message): ?>
+                <div class="alert alert-success"><?php echo htmlspecialchars($message); ?></div>
+            <?php endif; ?>
+
+            <div class="alert alert-info" style="margin-bottom: 14px;">
+                <strong>Current Location:</strong>
+                County ID <?php echo (int)($voter['county_id'] ?? 0); ?>,
+                Constituency ID <?php echo (int)($voter['constituency_id'] ?? 0); ?>,
+                Ward ID <?php echo (int)($voter['ward_id'] ?? 0); ?>.
+                You continue voting in this current location until admin approval.
+            </div>
+
+            <form method="POST" action="change_location.php" id="locationChangeForm">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                <input type="hidden" name="action" value="request_location_change">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>County <span class="required-star">*</span></label>
+                        <select name="county_id" id="county_id" required>
+                            <option value="">Select County</option>
+                            <?php foreach ($counties as $county): ?>
+                                <option value="<?php echo (int)$county['county_id']; ?>">
+                                    <?php echo htmlspecialchars($county['county_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Constituency <span class="required-star">*</span></label>
+                        <select name="constituency_id" id="constituency_id" required>
+                            <option value="">Select Constituency</option>
+                            <?php foreach ($current_constituencies as $constituency): ?>
+                                <option value="<?php echo (int)$constituency['constituency_id']; ?>">
+                                    <?php echo htmlspecialchars($constituency['constituency_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ward <span class="required-star">*</span></label>
+                        <select name="ward_id" id="ward_id" required>
+                            <option value="">Select Ward</option>
+                            <?php foreach ($current_wards as $ward): ?>
+                                <option value="<?php echo (int)$ward['ward_id']; ?>">
+                                    <?php echo htmlspecialchars($ward['ward_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Reason For Relocation <span class="required-star">*</span></label>
+                        <textarea name="relocation_reason" rows="3" required placeholder="Example: I relocated to another ward due to work and residence change."></textarea>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 8px;">
+                    <button type="submit" class="btn btn-primary">Submit Relocation Request</button>
+                    <a href="ballot.php" class="btn btn-secondary">Back To Ballot</a>
+                    <a href="voter_account.php" class="btn btn-secondary">My Account</a>
+                </div>
+            </form>
+
+            <h3 style="margin-top:20px;">Relocation/Profile Request Status</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Reason</th>
+                            <th>Previous Location</th>
+                            <th>Requested Location</th>
+                            <th>Status</th>
+                            <th>Admin Note</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php if (empty($change_requests)): ?>
+                        <tr><td colspan="6">No change requests yet.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($change_requests as $request): ?>
+                            <?php $requested = $request['requested_data_parsed'] ?? []; ?>
+                            <?php $is_location_change = !empty($request['is_location_change']); ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($request['created_at'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($request['reason'] ?? ''); ?></td>
+                                <td>
+                                    <div><strong>County:</strong> <?php echo htmlspecialchars($request['previous_county_name'] ?? '-'); ?></div>
+                                    <div><strong>Constituency:</strong> <?php echo htmlspecialchars($request['previous_constituency_name'] ?? '-'); ?></div>
+                                    <div><strong>Ward:</strong> <?php echo htmlspecialchars($request['previous_ward_name'] ?? '-'); ?></div>
+                                </td>
+                                <td>
+                                    <div><strong>County:</strong> <?php echo htmlspecialchars($request['requested_county_name'] ?? '-'); ?></div>
+                                    <div><strong>Constituency:</strong> <?php echo htmlspecialchars($request['requested_constituency_name'] ?? '-'); ?></div>
+                                    <div><strong>Ward:</strong> <?php echo htmlspecialchars($request['requested_ward_name'] ?? '-'); ?></div>
+                                    <?php if (!$is_location_change): ?>
+                                        <div><em>No location change in this request.</em></div>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (($request['status'] ?? '') === 'approved'): ?>
+                                        <span class="status-badge status-active">Approved</span>
+                                    <?php elseif (($request['status'] ?? '') === 'rejected'): ?>
+                                        <span class="status-badge status-invalid">Rejected</span>
+                                    <?php else: ?>
+                                        <span class="status-badge status-warning">Pending</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo htmlspecialchars($request['decision_note'] ?? '-'); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var path = window.location.pathname || '';
+    var fromViewsTemplate = /\/views\/change_location\.view\.html$/i.test(path);
+    var fromFilePreview = window.location.protocol === 'file:';
+
+    if (!fromViewsTemplate && !fromFilePreview) {
+        return;
+    }
+
+    var origin = window.location.origin && window.location.origin !== 'null'
+        ? window.location.origin
+        : 'http://127.0.0.1:8000';
+    var basePath = path.replace(/\/views\/[^/]+\.view\.html$/i, '');
+    window.location.href = origin + basePath + '/change_location.php' + window.location.search;
+})();
+</script>
+</body>
+</html>

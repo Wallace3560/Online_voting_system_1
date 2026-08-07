@@ -34,6 +34,27 @@
                 <div class="stat-card"><p>Your Ward</p><strong><?php echo htmlspecialchars((string)$voter['ward_id']); ?></strong></div>
             </div>
 
+            <?php if (!empty($latest_location_change)): ?>
+                <div class="alert alert-info" style="margin-bottom: 12px;">
+                    <strong>Relocation Request Status:</strong>
+                    <?php if (($latest_location_change['status'] ?? '') === 'pending'): ?>
+                        <span class="status-badge status-warning">Pending Admin Approval</span>
+                        <div style="margin-top:6px;">You can still vote using your current approved location until this request is approved.</div>
+                    <?php elseif (($latest_location_change['status'] ?? '') === 'approved'): ?>
+                        <span class="status-badge status-active">Approved</span>
+                        <div style="margin-top:6px;">Your voting location is now updated. Previous location voting is no longer allowed.</div>
+                    <?php else: ?>
+                        <span class="status-badge status-invalid">Rejected</span>
+                        <div style="margin-top:6px;">Your previous approved location remains active for voting.</div>
+                    <?php endif; ?>
+                    <div style="margin-top:8px;"><a href="change_location.php">Open Location Change Page</a></div>
+                </div>
+            <?php else: ?>
+                <div class="alert alert-info" style="margin-bottom: 12px;">
+                    No relocation request found. If you have relocated, use <a href="change_location.php">Change Location</a> before voting.
+                </div>
+            <?php endif; ?>
+
             <?php if (!$election_open): ?>
                 <div class="alert alert-info">Voting is currently closed by election administrators. You can still view live results.</div>
             <?php endif; ?>

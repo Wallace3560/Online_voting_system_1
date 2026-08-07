@@ -18,13 +18,22 @@ $can_manage_sensitive = canManageSensitiveElectionActions($admin_role);
 $message = '';
 $error = '';
 
+$location_status_filter = sanitize($_GET['location_status'] ?? 'pending');
+$allowed_location_status_filters = ['all', 'pending', 'approved', 'rejected'];
+if (!in_array($location_status_filter, $allowed_location_status_filters, true)) {
+    $location_status_filter = 'pending';
+}
+
+$new_user_search = sanitize($_GET['new_user_search'] ?? '');
+$location_search = sanitize($_GET['location_search'] ?? '');
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request token. Please refresh and try again.';
     }
 
     $action = sanitize($_POST['action']);
-    $admin_actions = ['approve', 'reject', 'set_election_schedule', 'publish_results', 'hide_results', 'add_candidate', 'update_voter', 'force_reject_voter', 'update_candidate', 'archive_reset_election', 'download_archived_results', 'create_by_election', 'add_by_election_candidate', 'close_by_election', 'mark_candidate_deceased', 'create_sub_admin', 'submit_manual_vote_batch', 'review_manual_vote_batch'];
+    $admin_actions = ['approve', 'reject', 'approve_profile_change', 'reject_profile_change', 'set_election_schedule', 'publish_results', 'hide_results', 'add_candidate', 'update_voter', 'force_reject_voter', 'update_candidate', 'archive_reset_election', 'download_archived_results', 'create_by_election', 'add_by_election_candidate', 'close_by_election', 'mark_candidate_deceased', 'create_sub_admin', 'submit_manual_vote_batch', 'review_manual_vote_batch'];
 
     $sensitive_actions = ['set_election_schedule', 'publish_results', 'hide_results', 'archive_reset_election', 'download_archived_results'];
     if ($error === '' && in_array($action, $admin_actions, true) && !$can_manage) {
@@ -50,6 +59,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 ]);
             } else {
                 $error = 'Failed to process voter verification.';
+            }
+        }
+    } elseif ($error === '' && $action === 'approve_profile_change') {
+        $request_id = (int)($_POST['request_id'] ?? 0);
+        $decision_note = sanitize($_POST['decision_note'] ?? 'Approved');
+        if ($request_id <= 0) {
+            $error = 'Invalid profile change request.';
+        } else {
+            $result = approveVoterProfileChangeRequest($request_id, (int)$_SESSION['admin_id'], $decision_note);
+            if (!empty($result['ok'])) {
+                $message = (string)$result['message'];
+                logAuditEvent('admin', (int)$_SESSION['admin_id'], 'profile_change_request_approved_from_verify_dashboard', [
+                    'request_id' => $request_id,
+                    'decision_note' => $decision_note
+                ]);
+            } else {
+                $error = (string)($result['message'] ?? 'Could not approve profile change request.');
+            }
+        }
+    } elseif ($error === '' && $action === 'reject_profile_change') {
+        $request_id = (int)($_POST['request_id'] ?? 0);
+        $decision_note = sanitize($_POST['decision_note'] ?? 'Rejected');
+        if ($request_id <= 0) {
+            $error = 'Invalid profile change request.';
+        } else {
+            $result = rejectVoterProfileChangeRequest($request_id, (int)$_SESSION['admin_id'], $decision_note);
+            if (!empty($result['ok'])) {
+                $message = (string)$result['message'];
+                logAuditEvent('admin', (int)$_SESSION['admin_id'], 'profile_change_request_rejected_from_verify_dashboard', [
+                    'request_id' => $request_id,
+                    'decision_note' => $decision_note
+                ]);
+            } else {
+                $error = (string)($result['message'] ?? 'Could not reject profile change request.');
             }
         }
     } elseif ($error === '' && $action === 'set_election_schedule') {
@@ -506,6 +549,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 }
 
 $pending_voters = getPendingVerifications();
+$pending_voters = filterRowsByVoterName($pending_voters, $new_user_search, 'full_name');
 $verified_voters = getVerifiedVoters();
 $rejected_voters = getRejectedVoters();
 $all_voters = getAllRegisteredVoters();
@@ -537,6 +581,10 @@ $all_constituencies = getAllConstituencies();
 $all_wards = getAllWards();
 $by_elections = getByElectionsForAdmin();
 $pending_manual_batches = getPendingManualVoteBatches();
+$location_profile_requests = $location_status_filter === 'all'
+    ? getVoterProfileChangeRequests()
+    : getVoterProfileChangeRequests($location_status_filter);
+$location_profile_requests = filterRowsByVoterName($location_profile_requests, $location_search, 'voter_name');
 
 $candidate_rows = [];
 foreach ($positions as $position) {

@@ -22,6 +22,7 @@
         { href: 'forgot_password.php', label: 'Forgot Password' },
         { href: 'ballot.php', label: 'Ballot' },
         { href: 'voter_account.php', label: 'My Account' },
+        { href: 'change_location.php', label: 'Change Location' },
         { href: 'results.php', label: 'Election Results' },
         { href: 'admin_login.php', label: 'Admin Login' },
         { href: 'voter_logout.php', label: 'Voter Logout' },

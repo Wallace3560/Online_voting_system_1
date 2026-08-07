@@ -14,6 +14,15 @@ $can_verify_voters = canVerifyVoters($admin_role);
 $message = '';
 $error = '';
 
+$location_status_filter = sanitize($_GET['location_status'] ?? 'all');
+$allowed_location_status_filters = ['all', 'pending', 'approved', 'rejected'];
+if (!in_array($location_status_filter, $allowed_location_status_filters, true)) {
+    $location_status_filter = 'all';
+}
+
+$new_user_search = sanitize($_GET['new_user_search'] ?? '');
+$location_search = sanitize($_GET['location_search'] ?? '');
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request token. Please refresh and try again.';
@@ -144,7 +153,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
 $all_voters = getAllRegisteredVoters();
 $pending_profile_requests = getVoterProfileChangeRequests('pending');
-$profile_request_history = getVoterProfileChangeRequests();
+$pending_profile_requests = filterRowsByVoterName($pending_profile_requests, $location_search, 'voter_name');
+$profile_request_history = $location_status_filter === 'all'
+    ? getVoterProfileChangeRequests()
+    : getVoterProfileChangeRequests($location_status_filter);
+$profile_request_history = filterRowsByVoterName($profile_request_history, $location_search, 'voter_name');
+$all_voters = filterRowsByVoterName($all_voters, $new_user_search, 'full_name');
 $csrf_token = getCsrfToken();
 
 require_once 'views/admin_manage_voters.view.html';

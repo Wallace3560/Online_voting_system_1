@@ -35,7 +35,108 @@
                 <div class="alert alert-info">Your role has read-only access. Management actions are disabled.</div>
             <?php endif; ?>
 
+            <h3 style="margin-top: 10px;">Pending Location Change Requests</h3>
+            <form method="GET" action="admin_manage_voters.php" style="display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:10px;">
+                <input type="hidden" name="new_user_search" value="<?php echo htmlspecialchars($new_user_search); ?>">
+                <div class="form-group" style="min-width:220px; margin:0;">
+                    <label>Filter Location Request Status</label>
+                    <select name="location_status">
+                        <option value="all" <?php echo ($location_status_filter === 'all') ? 'selected' : ''; ?>>All</option>
+                        <option value="pending" <?php echo ($location_status_filter === 'pending') ? 'selected' : ''; ?>>Pending</option>
+                        <option value="approved" <?php echo ($location_status_filter === 'approved') ? 'selected' : ''; ?>>Approved</option>
+                        <option value="rejected" <?php echo ($location_status_filter === 'rejected') ? 'selected' : ''; ?>>Rejected</option>
+                    </select>
+                </div>
+                <div class="form-group" style="min-width:280px; margin:0;">
+                    <label>Search Relocation User Name</label>
+                    <input type="text" name="location_search" value="<?php echo htmlspecialchars($location_search); ?>" placeholder="Type voter full name">
+                </div>
+                <button class="btn btn-secondary" type="submit">Search User</button>
+                <a class="btn btn-danger" href="admin_manage_voters.php?location_status=<?php echo urlencode((string)$location_status_filter); ?>&new_user_search=<?php echo urlencode((string)$new_user_search); ?>">Clear Search</a>
+            </form>
+            <div class="table-wrap" style="margin-bottom: 20px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Request Date</th>
+                            <th>Voter</th>
+                            <th>Current Location</th>
+                            <th>Requested Location</th>
+                            <th>Reason</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php
+                    $has_pending_location_requests = false;
+                    foreach ($pending_profile_requests as $request):
+                        if (empty($request['is_location_change'])) {
+                            continue;
+                        }
+                        $has_pending_location_requests = true;
+                        $location_request_manage_id = 'location-request-' . (int)$request['request_id'];
+                    ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($request['created_at'] ?? ''); ?></td>
+                            <td>
+                                <div><strong><?php echo htmlspecialchars($request['voter_name'] ?? ''); ?></strong></div>
+                                <div>ID: <?php echo htmlspecialchars($request['national_id'] ?? ''); ?></div>
+                            </td>
+                            <td>
+                                <div><strong>County:</strong> <?php echo htmlspecialchars($request['current_county_name'] ?? '-'); ?></div>
+                                <div><strong>Constituency:</strong> <?php echo htmlspecialchars($request['current_constituency_name'] ?? '-'); ?></div>
+                                <div><strong>Ward:</strong> <?php echo htmlspecialchars($request['current_ward_name'] ?? '-'); ?></div>
+                            </td>
+                            <td>
+                                <div><strong>County:</strong> <?php echo htmlspecialchars($request['requested_county_name'] ?? '-'); ?></div>
+                                <div><strong>Constituency:</strong> <?php echo htmlspecialchars($request['requested_constituency_name'] ?? '-'); ?></div>
+                                <div><strong>Ward:</strong> <?php echo htmlspecialchars($request['requested_ward_name'] ?? '-'); ?></div>
+                            </td>
+                            <td><?php echo htmlspecialchars($request['reason'] ?? ''); ?></td>
+                            <td>
+                                <?php if (!empty($can_manage)): ?>
+                                <button type="button" class="btn btn-secondary open-manage-btn" data-target="<?php echo htmlspecialchars($location_request_manage_id); ?>">Manage</button>
+                                <div id="<?php echo htmlspecialchars($location_request_manage_id); ?>" class="manage-inline-box" style="display:none;">
+                                    <form method="POST" action="admin_manage_voters.php" style="display:grid; gap:6px; margin-bottom:8px;">
+                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                        <input type="hidden" name="action" value="approve_profile_change">
+                                        <input type="hidden" name="request_id" value="<?php echo (int)$request['request_id']; ?>">
+                                        <input type="text" name="decision_note" placeholder="Approval note" value="Approved relocation request">
+                                        <button class="btn btn-primary" type="submit">Approve Location Change</button>
+                                    </form>
+                                    <form method="POST" action="admin_manage_voters.php" style="display:grid; gap:6px;">
+                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                        <input type="hidden" name="action" value="reject_profile_change">
+                                        <input type="hidden" name="request_id" value="<?php echo (int)$request['request_id']; ?>">
+                                        <input type="text" name="decision_note" placeholder="Rejection reason" value="Relocation request rejected">
+                                        <button class="btn btn-danger" type="submit">Reject Location Change</button>
+                                    </form>
+                                </div>
+                                <?php else: ?>
+                                <span class="status-badge status-warning">Read-only role</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if (!$has_pending_location_requests): ?>
+                        <tr><td colspan="6">No pending location change requests.</td></tr>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
             <h3 style="margin-top: 10px;">User Requests To Change Details</h3>
+            <h3 style="margin-top: 20px;">Registered Users (Search By Name)</h3>
+            <form method="GET" action="admin_manage_voters.php" style="display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:10px;">
+                <input type="hidden" name="location_status" value="<?php echo htmlspecialchars($location_status_filter); ?>">
+                <input type="hidden" name="location_search" value="<?php echo htmlspecialchars($location_search); ?>">
+                <div class="form-group" style="min-width:280px; margin:0;">
+                    <label>Search User Name</label>
+                    <input type="text" name="new_user_search" value="<?php echo htmlspecialchars($new_user_search); ?>" placeholder="Type voter full name">
+                </div>
+                <button class="btn btn-secondary" type="submit">Search User</button>
+                <a class="btn btn-danger" href="admin_manage_voters.php?location_status=<?php echo urlencode((string)$location_status_filter); ?>&location_search=<?php echo urlencode((string)$location_search); ?>">Clear Search</a>
+            </form>
             <div class="table-wrap" style="margin-bottom: 20px;">
                 <table>
                     <thead>
@@ -52,6 +153,7 @@
                         <tr><td colspan="5">No pending profile change requests.</td></tr>
                     <?php else: ?>
                         <?php foreach ($pending_profile_requests as $request): ?>
+                            <?php if (!empty($request['is_location_change'])) { continue; } ?>
                             <?php $requested = $request['requested_data_parsed'] ?? []; ?>
                             <?php $request_manage_id = 'manage-request-' . (int)$request['request_id']; ?>
                             <tr>
@@ -95,6 +197,18 @@
                                 </td>
                             </tr>
                         <?php endforeach; ?>
+                        <?php
+                        $has_pending_non_location_requests = false;
+                        foreach ($pending_profile_requests as $pending_row) {
+                            if (empty($pending_row['is_location_change'])) {
+                                $has_pending_non_location_requests = true;
+                                break;
+                            }
+                        }
+                        if (!$has_pending_non_location_requests):
+                        ?>
+                        <tr><td colspan="5">No pending non-location profile change requests.</td></tr>
+                        <?php endif; ?>
                     <?php endif; ?>
                     </tbody>
                 </table>
@@ -203,7 +317,76 @@
                 </table>
             </div>
 
-            <h3 style="margin-top: 20px;">Profile Change Request History</h3>
+            <h3 style="margin-top: 20px;">Location Change Requests History</h3>
+            <form method="GET" action="admin_manage_voters.php" style="display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:10px;">
+                <div class="form-group" style="min-width:220px; margin:0;">
+                    <label>Filter Location Request Status</label>
+                    <select name="location_status">
+                        <option value="all" <?php echo ($location_status_filter === 'all') ? 'selected' : ''; ?>>All</option>
+                        <option value="pending" <?php echo ($location_status_filter === 'pending') ? 'selected' : ''; ?>>Pending</option>
+                        <option value="approved" <?php echo ($location_status_filter === 'approved') ? 'selected' : ''; ?>>Approved</option>
+                        <option value="rejected" <?php echo ($location_status_filter === 'rejected') ? 'selected' : ''; ?>>Rejected</option>
+                    </select>
+                </div>
+                <button class="btn btn-secondary" type="submit">Apply Filter</button>
+            </form>
+            <div class="table-wrap" style="margin-bottom: 20px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Voter</th>
+                            <th>Previous Location</th>
+                            <th>Requested Location</th>
+                            <th>Status</th>
+                            <th>Admin</th>
+                            <th>Admin Note</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php
+                    $has_location_history = false;
+                    foreach ($profile_request_history as $request):
+                        if (empty($request['is_location_change'])) {
+                            continue;
+                        }
+                        $request_status = (string)($request['status'] ?? 'pending');
+                        $has_location_history = true;
+                    ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($request['created_at'] ?? ''); ?></td>
+                            <td><?php echo htmlspecialchars($request['voter_name'] ?? ''); ?></td>
+                            <td>
+                                <div><strong>County:</strong> <?php echo htmlspecialchars($request['previous_county_name'] ?? '-'); ?></div>
+                                <div><strong>Constituency:</strong> <?php echo htmlspecialchars($request['previous_constituency_name'] ?? '-'); ?></div>
+                                <div><strong>Ward:</strong> <?php echo htmlspecialchars($request['previous_ward_name'] ?? '-'); ?></div>
+                            </td>
+                            <td>
+                                <div><strong>County:</strong> <?php echo htmlspecialchars($request['requested_county_name'] ?? '-'); ?></div>
+                                <div><strong>Constituency:</strong> <?php echo htmlspecialchars($request['requested_constituency_name'] ?? '-'); ?></div>
+                                <div><strong>Ward:</strong> <?php echo htmlspecialchars($request['requested_ward_name'] ?? '-'); ?></div>
+                            </td>
+                            <td>
+                                <?php if ($request_status === 'approved'): ?>
+                                    <span class="status-badge status-active">Approved</span>
+                                <?php elseif ($request_status === 'rejected'): ?>
+                                    <span class="status-badge status-invalid">Rejected</span>
+                                <?php else: ?>
+                                    <span class="status-badge status-warning">Pending</span>
+                                <?php endif; ?>
+                            </td>
+                            <td><?php echo htmlspecialchars($request['reviewed_by_name'] ?? '-'); ?></td>
+                            <td><?php echo htmlspecialchars($request['decision_note'] ?? '-'); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if (!$has_location_history): ?>
+                        <tr><td colspan="7">No location change requests found for the selected status filter.</td></tr>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 style="margin-top: 20px;">Profile Change Request History (All)</h3>
             <div class="table-wrap" style="margin-bottom: 20px;">
                 <table>
                     <thead>
