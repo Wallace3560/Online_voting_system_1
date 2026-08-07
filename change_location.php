@@ -21,9 +21,12 @@ if (!$voter || !canLogin($voter_id)) {
 
 $message = '';
 $error = '';
+$location_change_eligibility = getVoterLocationChangeEligibility();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['action'] ?? '') === 'request_location_change') {
-    if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
+    if (empty($location_change_eligibility['allowed'])) {
+        $error = (string)($location_change_eligibility['message'] ?? 'Location change is not allowed at this time.');
+    } elseif (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request token. Please refresh and try again.';
     } else {
         $county_id = (int)($_POST['county_id'] ?? 0);
@@ -50,6 +53,7 @@ $counties = getCounties();
 $current_constituencies = getConstituenciesByCounty((int)($voter['county_id'] ?? 0));
 $current_wards = getWardsByConstituency((int)($voter['constituency_id'] ?? 0));
 $change_requests = getVoterProfileChangeRequestsByVoter($voter_id);
+$location_change_eligibility = getVoterLocationChangeEligibility();
 $csrf_token = getCsrfToken();
 
 require_once 'views/change_location.view.html';

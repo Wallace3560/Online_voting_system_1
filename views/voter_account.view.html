@@ -119,11 +119,25 @@
 
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 8px;">
                     <button type="submit" class="btn btn-primary" id="requestUpdateBtn">Update Details (Request Approval)</button>
-                    <a href="change_location.php" class="btn btn-secondary">Request Location Change</a>
+                    <?php if (!empty($location_change_eligibility['allowed'])): ?>
+                        <a href="change_location.php" class="btn btn-secondary">Request Location Change</a>
+                    <?php else: ?>
+                        <button type="button" class="btn btn-secondary" disabled title="Location change is temporarily blocked by election timing rules.">Request Location Change</button>
+                    <?php endif; ?>
                     <?php if (empty($is_token_flow)): ?>
                         <a href="voter_logout.php" class="btn btn-danger">Logout</a>
                     <?php endif; ?>
                 </div>
+
+                <?php if (empty($location_change_eligibility['allowed'])): ?>
+                    <div class="alert alert-danger" style="margin-top: 10px; margin-bottom: 0;">
+                        <?php echo htmlspecialchars((string)($location_change_eligibility['message'] ?? 'Location change is not allowed at this time.')); ?>
+                    </div>
+                <?php else: ?>
+                    <div class="alert alert-info" style="margin-top: 10px; margin-bottom: 0;">
+                        Location change is blocked 1 week before election start and reopens 1 year after election closure.
+                    </div>
+                <?php endif; ?>
             </form>
 
             <h3 style="margin-top:20px;">My Update Requests</h3>

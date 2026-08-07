@@ -142,6 +142,7 @@ $counties = getCounties();
 $current_constituencies = getConstituenciesByCounty((int)($voter['county_id'] ?? 0));
 $current_wards = getWardsByConstituency((int)($voter['constituency_id'] ?? 0));
 $change_requests = getVoterProfileChangeRequestsByVoter($voter_id);
+$location_change_eligibility = getVoterLocationChangeEligibility();
 $csrf_token = getCsrfToken();
 
 if ($can_use_correction_token && !$is_token_flow) {

@@ -36,6 +36,16 @@
                 You continue voting in this current location until admin approval.
             </div>
 
+            <?php if (empty($location_change_eligibility['allowed'])): ?>
+                <div class="alert alert-danger" style="margin-bottom: 14px;">
+                    <?php echo htmlspecialchars((string)($location_change_eligibility['message'] ?? 'Location change is not allowed at this time.')); ?>
+                </div>
+            <?php else: ?>
+                <div class="alert alert-info" style="margin-bottom: 14px;">
+                    Location changes are blocked 1 week before election start and become available again 1 year after election closure.
+                </div>
+            <?php endif; ?>
+
             <form method="POST" action="change_location.php" id="locationChangeForm">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
                 <input type="hidden" name="action" value="request_location_change">
@@ -84,7 +94,7 @@
                 </div>
 
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 8px;">
-                    <button type="submit" class="btn btn-primary">Submit Relocation Request</button>
+                    <button type="submit" class="btn btn-primary" <?php echo empty($location_change_eligibility['allowed']) ? 'disabled' : ''; ?>>Submit Relocation Request</button>
                     <a href="ballot.php" class="btn btn-secondary">Back To Ballot</a>
                     <a href="voter_account.php" class="btn btn-secondary">My Account</a>
                 </div>

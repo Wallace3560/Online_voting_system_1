@@ -1355,6 +1355,18 @@ function createVoterProfileChangeRequest($voter_id, $requested_data, $reason) {
         return ['ok' => false, 'message' => 'Selected county, constituency, and ward do not match.'];
     }
 
+    $is_location_change = (
+        $county_id !== (int)($current['county_id'] ?? 0)
+        || $constituency_id !== (int)($current['constituency_id'] ?? 0)
+        || $ward_id !== (int)($current['ward_id'] ?? 0)
+    );
+    if ($is_location_change) {
+        $eligibility = getVoterLocationChangeEligibility();
+        if (empty($eligibility['allowed'])) {
+            return ['ok' => false, 'message' => (string)($eligibility['message'] ?? 'Location change is not allowed at this time.')];
+        }
+    }
+
     if ($reason === '') {
         return ['ok' => false, 'message' => 'Please provide a reason for your profile update request.'];
     }
@@ -1431,6 +1443,11 @@ function createVoterRelocationRequest($voter_id, $county_id, $constituency_id, $
         && $ward_id === (int)($voter['ward_id'] ?? 0)
     ) {
         return ['ok' => false, 'message' => 'Selected location is the same as your current voting location.'];
+    }
+
+    $eligibility = getVoterLocationChangeEligibility();
+    if (empty($eligibility['allowed'])) {
+        return ['ok' => false, 'message' => (string)($eligibility['message'] ?? 'Location change is not allowed at this time.')];
     }
 
     $payload = [
@@ -2917,6 +2934,50 @@ function getElectionScheduleWindow() {
         'start_ts' => $start_ts,
         'end_ts' => $end_ts
     ];
+}
+
+function getVoterLocationChangeEligibility() {
+    $window = getElectionScheduleWindow();
+    if (!is_array($window)) {
+        return ['allowed' => true, 'message' => ''];
+    }
+
+    $now_ts = time();
+    $start_ts = (int)($window['start_ts'] ?? 0);
+    $end_ts = (int)($window['end_ts'] ?? 0);
+
+    if ($start_ts > 0) {
+        $lock_before_start_ts = $start_ts - (7 * 24 * 60 * 60);
+        if ($now_ts >= $lock_before_start_ts && $now_ts < $start_ts) {
+            return [
+                'allowed' => false,
+                'message' => 'Change of location is not acceptable when election start date is near. Requests close 1 week before election start.',
+                'code' => 'near_election_start'
+            ];
+        }
+
+        if ($end_ts > 0 && $now_ts >= $start_ts && $now_ts <= $end_ts) {
+            return [
+                'allowed' => false,
+                'message' => 'Location change is not allowed during an active election window.',
+                'code' => 'election_open'
+            ];
+        }
+    }
+
+    if ($end_ts > 0 && $now_ts > $end_ts) {
+        $unlock_ts = strtotime('+1 year', $end_ts);
+        if ($unlock_ts !== false && $now_ts < $unlock_ts) {
+            return [
+                'allowed' => false,
+                'message' => 'Location change is locked after election closure and becomes available 1 year later on ' . date('Y-m-d H:i:s', $unlock_ts) . '.',
+                'code' => 'post_election_lock',
+                'unlock_at' => date('Y-m-d H:i:s', $unlock_ts)
+            ];
+        }
+    }
+
+    return ['allowed' => true, 'message' => '', 'code' => 'allowed'];
 }
 
 function isElectionOpen() {
