@@ -7,6 +7,19 @@
         return;
     }
 
+    if (!document.getElementById('iebc-flag-heading')) {
+        var headingWrap = document.createElement('div');
+        headingWrap.id = 'iebc-flag-heading';
+        headingWrap.className = 'iebc-flag-heading';
+
+        var heading = document.createElement('h1');
+        heading.className = 'iebc-flag-heading-text';
+        heading.textContent = 'INDEPENDENT ELECTORAL AND BOUNDARIES COMMISSION';
+
+        headingWrap.appendChild(heading);
+        document.body.insertBefore(headingWrap, document.body.firstChild);
+    }
+
     var roleHome = 'index.html';
     if (window.__ROLE_HOME__ && typeof window.__ROLE_HOME__ === 'string' && window.__ROLE_HOME__.trim() !== '') {
         roleHome = window.__ROLE_HOME__.trim();

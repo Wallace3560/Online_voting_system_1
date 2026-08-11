@@ -2946,35 +2946,12 @@ function getVoterLocationChangeEligibility() {
     $start_ts = (int)($window['start_ts'] ?? 0);
     $end_ts = (int)($window['end_ts'] ?? 0);
 
-    if ($start_ts > 0) {
-        $lock_before_start_ts = $start_ts - (7 * 24 * 60 * 60);
-        if ($now_ts >= $lock_before_start_ts && $now_ts < $start_ts) {
-            return [
-                'allowed' => false,
-                'message' => 'Change of location is not acceptable when election start date is near. Requests close 1 week before election start.',
-                'code' => 'near_election_start'
-            ];
-        }
-
-        if ($end_ts > 0 && $now_ts >= $start_ts && $now_ts <= $end_ts) {
-            return [
-                'allowed' => false,
-                'message' => 'Location change is not allowed during an active election window.',
-                'code' => 'election_open'
-            ];
-        }
-    }
-
-    if ($end_ts > 0 && $now_ts > $end_ts) {
-        $unlock_ts = strtotime('+1 year', $end_ts);
-        if ($unlock_ts !== false && $now_ts < $unlock_ts) {
-            return [
-                'allowed' => false,
-                'message' => 'Location change is locked after election closure and becomes available 1 year later on ' . date('Y-m-d H:i:s', $unlock_ts) . '.',
-                'code' => 'post_election_lock',
-                'unlock_at' => date('Y-m-d H:i:s', $unlock_ts)
-            ];
-        }
+    if ($start_ts > 0 && $end_ts > 0 && $now_ts >= $start_ts && $now_ts <= $end_ts) {
+        return [
+            'allowed' => false,
+            'message' => 'Location change is not allowed during an active election window.',
+            'code' => 'election_open'
+        ];
     }
 
     return ['allowed' => true, 'message' => '', 'code' => 'allowed'];
