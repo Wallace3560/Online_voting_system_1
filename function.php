@@ -3690,6 +3690,70 @@ function saveOptionalCandidatePhotoUpload($file) {
     return saveCandidatePhotoUpload($file);
 }
 
+function getMultiUploadFileAtIndex($files_field, $index) {
+    if (!is_array($files_field) || !isset($files_field['error']) || !is_array($files_field['error'])) {
+        return null;
+    }
+
+    $safe_index = (int)$index;
+    return [
+        'name' => (string)($files_field['name'][$safe_index] ?? ''),
+        'type' => (string)($files_field['type'][$safe_index] ?? ''),
+        'tmp_name' => (string)($files_field['tmp_name'][$safe_index] ?? ''),
+        'error' => (int)($files_field['error'][$safe_index] ?? UPLOAD_ERR_NO_FILE),
+        'size' => (int)($files_field['size'][$safe_index] ?? 0)
+    ];
+}
+
+function prepareByElectionCandidatesFromRequest($post, $files) {
+    $full_names = isset($post['by_candidate_full_name']) && is_array($post['by_candidate_full_name'])
+        ? $post['by_candidate_full_name']
+        : [];
+    $party_names = isset($post['by_candidate_party_name']) && is_array($post['by_candidate_party_name'])
+        ? $post['by_candidate_party_name']
+        : [];
+
+    $photo_field = isset($files['by_candidate_photo']) && is_array($files['by_candidate_photo'])
+        ? $files['by_candidate_photo']
+        : null;
+
+    $candidates = [];
+    $row_count = count($full_names);
+
+    for ($i = 0; $i < $row_count; $i++) {
+        $name_value = sanitize($full_names[$i] ?? '');
+        $party_value = sanitize($party_names[$i] ?? '');
+        $photo_file = getMultiUploadFileAtIndex($photo_field, $i);
+        $photo_missing = !$photo_file || (int)($photo_file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE;
+
+        // Skip fully empty candidate rows.
+        if ($name_value === '' && $party_value === '' && $photo_missing) {
+            continue;
+        }
+
+        if ($name_value === '') {
+            return ['ok' => false, 'message' => 'Candidate name is required for each by-election candidate row.'];
+        }
+
+        if ($photo_missing) {
+            return ['ok' => false, 'message' => 'Candidate photo is required for candidate: ' . $name_value . '.'];
+        }
+
+        $photo_upload = saveCandidatePhotoUpload($photo_file);
+        if (empty($photo_upload['ok'])) {
+            return ['ok' => false, 'message' => (string)($photo_upload['message'] ?? 'Failed to upload candidate photo.')];
+        }
+
+        $candidates[] = [
+            'full_name' => $name_value,
+            'party_name' => $party_value !== '' ? $party_value : 'Independent',
+            'candidate_photo' => (string)($photo_upload['path'] ?? null)
+        ];
+    }
+
+    return ['ok' => true, 'candidates' => $candidates];
+}
+
 function saveNationalIdPhotoUpload($file, $side = 'front') {
     $normalized_side = strtolower(trim((string)$side)) === 'back' ? 'back' : 'front';
     $label = $normalized_side === 'back' ? 'National ID back photo' : 'National ID front photo';

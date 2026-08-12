@@ -398,30 +398,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $open_at = sanitize($_POST['by_open_at'] ?? '');
         $close_at = sanitize($_POST['by_close_at'] ?? '');
 
-        $create_result = createByElection(
-            $position_id,
-            $election_title,
-            $affected_candidate_name,
-            $reason,
-            $county_id,
-            $constituency_id,
-            $ward_id,
-            $open_at,
-            $close_at,
-            (int)$_SESSION['admin_id']
-        );
+        $prepared_candidates = prepareByElectionCandidatesFromRequest($_POST, $_FILES);
+        if (empty($prepared_candidates['ok'])) {
+            $error = (string)($prepared_candidates['message'] ?? 'Invalid by-election candidate details.');
+        }
 
-        if (!empty($create_result['ok'])) {
-            $message = (string)$create_result['message'];
-            logAuditEvent('admin', (int)$_SESSION['admin_id'], 'by_election_created', [
-                'by_election_id' => (int)($create_result['by_election_id'] ?? 0),
-                'position_id' => $position_id,
-                'county_id' => $county_id,
-                'constituency_id' => $constituency_id,
-                'ward_id' => $ward_id
-            ]);
-        } else {
-            $error = (string)($create_result['message'] ?? 'Failed to create by-election.');
+        $candidate_rows = [];
+        if ($error === '') {
+            $candidate_rows = isset($prepared_candidates['candidates']) && is_array($prepared_candidates['candidates'])
+                ? $prepared_candidates['candidates']
+                : [];
+
+            if (count($candidate_rows) === 0) {
+                $error = 'Add at least one by-election candidate with name and photo.';
+            }
+        }
+
+        if ($error === '') {
+            $create_result = createByElection(
+                $position_id,
+                $election_title,
+                $affected_candidate_name,
+                $reason,
+                $county_id,
+                $constituency_id,
+                $ward_id,
+                $open_at,
+                $close_at,
+                (int)$_SESSION['admin_id']
+            );
+
+            if (!empty($create_result['ok'])) {
+                $by_election_id = (int)($create_result['by_election_id'] ?? 0);
+                $added_candidates = 0;
+                $failed_candidates = 0;
+
+                foreach ($candidate_rows as $candidate_row) {
+                    $added = addByElectionCandidate(
+                        $by_election_id,
+                        (string)($candidate_row['full_name'] ?? ''),
+                        (string)($candidate_row['party_name'] ?? 'Independent'),
+                        (string)($candidate_row['candidate_photo'] ?? '')
+                    );
+
+                    if ($added) {
+                        $added_candidates++;
+                    } else {
+                        $failed_candidates++;
+                    }
+                }
+
+                if ($added_candidates <= 0) {
+                    $error = 'By-election was created, but candidates were not saved. Please add candidates again.';
+                } elseif ($failed_candidates > 0) {
+                    $message = 'By-election created with ' . $added_candidates . ' candidate(s). ' . $failed_candidates . ' candidate row(s) failed to save.';
+                } else {
+                    $message = 'By-election created successfully with ' . $added_candidates . ' candidate(s).';
+                }
+
+                logAuditEvent('admin', (int)$_SESSION['admin_id'], 'by_election_created', [
+                    'by_election_id' => $by_election_id,
+                    'position_id' => $position_id,
+                    'county_id' => $county_id,
+                    'constituency_id' => $constituency_id,
+                    'ward_id' => $ward_id,
+                    'candidates_added' => $added_candidates,
+                    'candidates_failed' => $failed_candidates
+                ]);
+            } else {
+                $error = (string)($create_result['message'] ?? 'Failed to create by-election.');
+            }
         }
     } elseif ($error === '' && $action === 'add_by_election_candidate') {
         $by_election_id = (int)($_POST['by_election_id'] ?? 0);

@@ -274,3 +274,55 @@ if (byPositionSelect) {
     byPositionSelect.addEventListener('change', toggleByElectionScopeFields);
     toggleByElectionScopeFields();
 }
+
+const byElectionCandidateRows = document.getElementById('by-election-candidate-rows');
+const addByElectionCandidateRowButton = document.getElementById('add-by-election-candidate-row');
+
+function createByElectionCandidateRow() {
+    const row = document.createElement('div');
+    row.className = 'form-row by-election-candidate-row';
+    row.innerHTML =
+        '<div class="form-group">'
+        + '<label>Candidate Name *</label>'
+        + '<input type="text" name="by_candidate_full_name[]" required placeholder="Candidate full name">'
+        + '</div>'
+        + '<div class="form-group">'
+        + '<label>Party Name (optional)</label>'
+        + '<input type="text" name="by_candidate_party_name[]" placeholder="Defaults to Independent">'
+        + '</div>'
+        + '<div class="form-group">'
+        + '<label>Candidate Photo *</label>'
+        + '<input type="file" name="by_candidate_photo[]" accept="image/jpeg,image/png,image/webp" required>'
+        + '</div>'
+        + '<div class="form-group" style="align-self:end;">'
+        + '<button type="button" class="btn btn-danger by-election-remove-candidate-row">Remove</button>'
+        + '</div>';
+    return row;
+}
+
+if (addByElectionCandidateRowButton && byElectionCandidateRows) {
+    addByElectionCandidateRowButton.addEventListener('click', function () {
+        byElectionCandidateRows.appendChild(createByElectionCandidateRow());
+    });
+
+    byElectionCandidateRows.addEventListener('click', function (event) {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) {
+            return;
+        }
+
+        if (!target.classList.contains('by-election-remove-candidate-row')) {
+            return;
+        }
+
+        const rows = byElectionCandidateRows.querySelectorAll('.by-election-candidate-row');
+        if (rows.length <= 1) {
+            return;
+        }
+
+        const row = target.closest('.by-election-candidate-row');
+        if (row) {
+            row.remove();
+        }
+    });
+}
