@@ -30,23 +30,20 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: #111111;
-    background: linear-gradient(
-        90deg,
-        #000000 0%,
-        #000000 29%,
-        #ffffff 29%,
-        #ffffff 33%,
-        #be1e2d 33%,
-        #be1e2d 66%,
-        #ffffff 66%,
-        #ffffff 70%,
-        #0b8f3e 70%,
-        #0b8f3e 100%
-    );
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    background: #ffffff;
+    display: inline-block;
+    padding: 0 8px;
+    border-radius: 6px;
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+}
+
+.iebc-word-independent,
+.iebc-word-commission {
+    color: #000000;
+}
+
+.iebc-word-electoral-boundaries {
+    color: #be1e2d;
 }
 
 .global-nav-fab {

@@ -14,7 +14,24 @@
 
         var heading = document.createElement('h1');
         heading.className = 'iebc-flag-heading-text';
-        heading.textContent = 'INDEPENDENT ELECTORAL AND BOUNDARIES COMMISSION';
+
+        var wordIndependent = document.createElement('span');
+        wordIndependent.className = 'iebc-word-independent';
+        wordIndependent.textContent = 'INDEPENDENT';
+
+        var wordMiddle = document.createElement('span');
+        wordMiddle.className = 'iebc-word-electoral-boundaries';
+        wordMiddle.textContent = 'ELECTORAL AND BOUNDARIES';
+
+        var wordCommission = document.createElement('span');
+        wordCommission.className = 'iebc-word-commission';
+        wordCommission.textContent = 'COMMISSION';
+
+        heading.appendChild(wordIndependent);
+        heading.appendChild(document.createTextNode(' '));
+        heading.appendChild(wordMiddle);
+        heading.appendChild(document.createTextNode(' '));
+        heading.appendChild(wordCommission);
 
         headingWrap.appendChild(heading);
         document.body.insertBefore(headingWrap, document.body.firstChild);
