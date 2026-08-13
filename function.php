@@ -4635,7 +4635,7 @@ function getElectionResultsData($filters = []) {
     $location_filter = buildVoteLocationFilterSql($filters, 'vv');
     $candidate_filter = buildCandidateScopeFilterSql($filters, 'c');
 
-    $query = "SELECT p.position_id, p.position_name, c.candidate_id, c.full_name, c.party_name,
+    $query = "SELECT p.position_id, p.position_name, c.candidate_id, c.full_name, c.party_name, c.candidate_photo,
                      COUNT(v.vote_id) AS votes
               FROM positions p
               LEFT JOIN candidates c ON c.position_id = p.position_id AND c.status = 'active'
@@ -4644,7 +4644,7 @@ function getElectionResultsData($filters = []) {
               WHERE p.status = 'active'
                 " . $candidate_filter['sql'] . "
                 " . $location_filter['sql'] . "
-              GROUP BY p.position_id, p.position_name, c.candidate_id, c.full_name, c.party_name
+              GROUP BY p.position_id, p.position_name, c.candidate_id, c.full_name, c.party_name, c.candidate_photo
               ORDER BY p.display_order ASC, votes DESC, c.full_name ASC";
     $result = mysqli_query($conn, $query);
     $rows = $result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
@@ -4668,6 +4668,7 @@ function getElectionResultsData($filters = []) {
                 'candidate_id' => (int)$row['candidate_id'],
                 'full_name' => $row['full_name'],
                 'party_name' => $row['party_name'],
+                'candidate_photo' => normalizeCandidatePhotoPath($row['candidate_photo'] ?? null),
                 'votes' => $votes
             ];
         }

@@ -177,7 +177,26 @@
                             <?php else: ?>
                                 <?php foreach ($position['candidates'] as $candidate): ?>
                                     <tr>
-                                        <td><?php echo htmlspecialchars($candidate['full_name']); ?></td>
+                                        <td>
+                                            <div class="result-candidate-cell">
+                                                <?php if (!empty($candidate['candidate_photo'])): ?>
+                                                    <button
+                                                        type="button"
+                                                        class="result-candidate-photo-trigger"
+                                                        data-photo-src="<?php echo htmlspecialchars($candidate['candidate_photo']); ?>"
+                                                        data-photo-name="<?php echo htmlspecialchars($candidate['full_name']); ?>"
+                                                        aria-label="Open photo for <?php echo htmlspecialchars($candidate['full_name']); ?>"
+                                                    >
+                                                        <img src="<?php echo htmlspecialchars($candidate['candidate_photo']); ?>" alt="<?php echo htmlspecialchars($candidate['full_name']); ?>" class="result-candidate-photo">
+                                                    </button>
+                                                <?php else: ?>
+                                                    <div class="result-candidate-photo placeholder">
+                                                        <?php echo htmlspecialchars(strtoupper(substr((string)$candidate['full_name'], 0, 1))); ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                                <span class="result-candidate-name"><?php echo htmlspecialchars($candidate['full_name']); ?></span>
+                                            </div>
+                                        </td>
                                         <td><?php echo htmlspecialchars($candidate['party_name']); ?></td>
                                         <td><?php echo (int)$candidate['votes']; ?></td>
                                         <td><?php echo (float)$candidate['percentage']; ?>%</td>
@@ -203,9 +222,7 @@
 
             <p class="footer-note">Results update automatically as new votes are cast.</p>
             <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:10px;">
-                <?php if (!empty($admin_view)): ?>
-                    <a href="admin_logout.php" class="btn btn-danger">Admin Logout</a>
-                <?php elseif (!empty($voter_view)): ?>
+                <?php if (!empty($voter_view)): ?>
                     <a href="voter_logout.php" class="btn btn-danger">Logout</a>
                 <?php endif; ?>
             </div>
@@ -217,12 +234,71 @@
         </div>
     </div>
 </div>
+
+<div id="result-photo-modal" class="result-photo-modal" hidden>
+    <div class="result-photo-modal-backdrop" data-modal-close="1"></div>
+    <div class="result-photo-modal-card" role="dialog" aria-modal="true" aria-labelledby="result-photo-modal-title">
+        <button type="button" class="result-photo-modal-close" data-modal-close="1" aria-label="Close photo preview">Close</button>
+        <h4 id="result-photo-modal-title" class="result-photo-modal-title">Candidate Photo</h4>
+        <img id="result-photo-modal-image" class="result-photo-modal-image" src="" alt="Candidate photo preview">
+    </div>
+</div>
+
 <script>
 (function () {
     var flash = <?php echo json_encode((string)$flash_message); ?>;
     if (flash) {
         window.alert(flash);
     }
+})();
+
+(function () {
+    var modal = document.getElementById('result-photo-modal');
+    var modalImage = document.getElementById('result-photo-modal-image');
+    var modalTitle = document.getElementById('result-photo-modal-title');
+    var triggers = document.querySelectorAll('.result-candidate-photo-trigger');
+
+    if (!modal || !modalImage || !modalTitle || !triggers.length) {
+        return;
+    }
+
+    function closeModal() {
+        modal.hidden = true;
+        modalImage.src = '';
+        modalImage.alt = 'Candidate photo preview';
+        modalTitle.textContent = 'Candidate Photo';
+    }
+
+    function openModal(src, name) {
+        modalImage.src = src;
+        modalImage.alt = name ? ('Photo of ' + name) : 'Candidate photo preview';
+        modalTitle.textContent = name ? ('Candidate Photo: ' + name) : 'Candidate Photo';
+        modal.hidden = false;
+    }
+
+    for (var i = 0; i < triggers.length; i++) {
+        triggers[i].addEventListener('click', function () {
+            var src = this.getAttribute('data-photo-src') || '';
+            var name = this.getAttribute('data-photo-name') || '';
+            if (!src) {
+                return;
+            }
+            openModal(src, name);
+        });
+    }
+
+    modal.addEventListener('click', function (event) {
+        var target = event.target;
+        if (target && target.getAttribute('data-modal-close') === '1') {
+            closeModal();
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !modal.hidden) {
+            closeModal();
+        }
+    });
 })();
 
 (function () {
