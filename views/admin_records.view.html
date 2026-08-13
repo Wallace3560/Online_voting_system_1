@@ -106,7 +106,7 @@
                                     <td><?php echo htmlspecialchars($row['scope'] ?? '-'); ?></td>
                                     <td><?php echo htmlspecialchars($row['status'] ?? '-'); ?></td>
                                     <td>
-                                        <?php if (!empty($can_manage)): ?>
+                                        <?php if (!empty($can_manage) && !empty($can_access_candidate_records)): ?>
                                             <?php $candidate_manage_id = 'manage-candidate-' . (int)($row['candidate_id'] ?? 0); ?>
                                             <button type="button" class="btn btn-secondary open-manage-btn" data-target="<?php echo htmlspecialchars($candidate_manage_id); ?>">Manage</button>
                                             <div id="<?php echo htmlspecialchars($candidate_manage_id); ?>" class="manage-inline-box" style="display:none; margin-top:8px; border:1px solid #d7dfd7; border-radius:8px; padding:8px; background:#f8fbf8;">
