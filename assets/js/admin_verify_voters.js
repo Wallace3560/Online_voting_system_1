@@ -18,8 +18,9 @@ function toggleScopeFields() {
     const selected = positionSelect.options[positionSelect.selectedIndex];
     const scope = selected ? selected.getAttribute('data-scope') : '';
 
-    countyWrap.style.display = (scope === 'county') ? 'block' : 'none';
-    constituencyWrap.style.display = (scope === 'constituency') ? 'block' : 'none';
+    // Constituency and ward selection depend on county, so keep county visible for those scopes.
+    countyWrap.style.display = (scope === 'county' || scope === 'constituency' || scope === 'ward') ? 'block' : 'none';
+    constituencyWrap.style.display = (scope === 'constituency' || scope === 'ward') ? 'block' : 'none';
     wardWrap.style.display = (scope === 'ward') ? 'block' : 'none';
 }
 
@@ -96,14 +97,14 @@ function toggleCandidateEditScopeFields(selectEl) {
     const wardField = container.querySelector('select[name="ward_id"]');
 
     if (countyField) {
-        countyField.disabled = scope !== 'county';
+        countyField.disabled = !(scope === 'county' || scope === 'constituency' || scope === 'ward');
         if (countyField.disabled) {
             countyField.value = '';
         }
     }
 
     if (constituencyField) {
-        constituencyField.disabled = scope !== 'constituency';
+        constituencyField.disabled = !(scope === 'constituency' || scope === 'ward');
         if (constituencyField.disabled) {
             constituencyField.value = '';
         }
