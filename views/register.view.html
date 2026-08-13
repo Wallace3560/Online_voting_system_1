@@ -129,6 +129,12 @@
     </div>
 </div>
 <script>
+<?php if (!empty($success) && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'): ?>
+window.addEventListener('DOMContentLoaded', function () {
+    window.alert(<?php echo json_encode((string)$success); ?>);
+});
+<?php endif; ?>
+
 (function () {
     // view-redirect-guard: ensure template previews route to the controller endpoint
     var path = window.location.pathname || '';

@@ -228,6 +228,12 @@
 </div>
 <script>
 window.__ROLE_HOME__ = 'election_officer_dashboard.php';
+
+<?php if (!empty($message) && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'): ?>
+window.addEventListener('DOMContentLoaded', function () {
+    window.alert(<?php echo json_encode((string)$message); ?>);
+});
+<?php endif; ?>
 </script>
 </body>
 </html>

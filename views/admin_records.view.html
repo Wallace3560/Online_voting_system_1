@@ -346,5 +346,11 @@
 })();
 </script>
 </body>
+
+<?php if (!empty($message) && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'): ?>
+window.addEventListener('DOMContentLoaded', function () {
+    window.alert(<?php echo json_encode((string)$message); ?>);
+});
+<?php endif; ?>
 </html>
 
