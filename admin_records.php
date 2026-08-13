@@ -11,6 +11,7 @@ requireAdminAuth();
 $admin_role = (string)($_SESSION['admin_role'] ?? 'super_admin');
 $can_manage = canManageElection($admin_role);
 $can_verify_voters = canVerifyVoters($admin_role);
+$can_access_candidate_records = in_array($admin_role, ['super_admin', 'sub_admin'], true);
 
 $message = '';
 $error = '';
@@ -122,6 +123,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
         }
     } elseif ($error === '' && $action === 'update_candidate') {
+        if (!$can_access_candidate_records) {
+            $error = 'Only super-admin and sub-admin roles can access candidate correction records.';
+        }
+
+        if ($error !== '') {
+            // Stop this action when role is not allowed.
+        } else {
         $candidate_id = (int)($_POST['candidate_id'] ?? 0);
         $position_id = (int)($_POST['position_id'] ?? 0);
         $full_name = sanitize($_POST['full_name'] ?? '');
@@ -159,7 +167,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $error = (string)($update_result['message'] ?? 'Failed to update candidate.');
             }
         }
+        }
     } elseif ($error === '' && $action === 'mark_candidate_deceased') {
+        if (!$can_access_candidate_records) {
+            $error = 'Only super-admin and sub-admin roles can access candidate correction records.';
+        }
+
+        if ($error !== '') {
+            // Stop this action when role is not allowed.
+        } else {
         $candidate_id = (int)($_POST['candidate_id'] ?? 0);
         $deceased_reason = sanitize($_POST['deceased_reason'] ?? 'Candidate died while in office.');
 
@@ -174,6 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         } else {
             $error = (string)($deceased_result['message'] ?? 'Failed to mark candidate deceased.');
         }
+        }
     }
 }
 
@@ -181,6 +198,11 @@ $type = sanitize($_GET['type'] ?? 'voters');
 $allowed_types = ['voters', 'candidates', 'pending'];
 if (!in_array($type, $allowed_types, true)) {
     $type = 'voters';
+}
+
+if ($type === 'candidates' && !$can_access_candidate_records) {
+    http_response_code(403);
+    exit('Forbidden: only super-admin and sub-admin can access candidate correction records.');
 }
 
 $query = sanitize($_GET['q'] ?? '');
