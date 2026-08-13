@@ -347,10 +347,7 @@
     }
 
     if (body) {
-        body.addEventListener('submit', function () {
-            dialog.close();
-            body.innerHTML = '';
-        });
+        // Do not clear/remove submitted forms here; allow normal POST navigation.
     }
 
     document.querySelectorAll('.open-manage-btn').forEach(function (btn) {
@@ -374,13 +371,13 @@
         });
     });
 })();
-</script>
-</body>
 
 <?php if (!empty($message) && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'): ?>
 window.addEventListener('DOMContentLoaded', function () {
     window.alert(<?php echo json_encode((string)$message); ?>);
 });
 <?php endif; ?>
+</script>
+</body>
 </html>
 
