@@ -35,6 +35,9 @@
                 <a class="btn <?php echo ($type === 'voters') ? 'btn-primary' : 'btn-secondary'; ?>" href="admin_records.php?type=voters">All Registered Voters</a>
                 <a class="btn <?php echo ($type === 'candidates') ? 'btn-primary' : 'btn-secondary'; ?>" href="admin_records.php?type=candidates">Configured Candidates</a>
                 <a class="btn <?php echo ($type === 'pending') ? 'btn-primary' : 'btn-secondary'; ?>" href="admin_records.php?type=pending">Pending Verification</a>
+                <?php if (!empty($can_access_candidate_records)): ?>
+                    <a class="btn btn-secondary" href="admin_candidate_change_history.php">Candidate Change History</a>
+                <?php endif; ?>
                 <a class="btn btn-secondary" href="admin_verify_voters.php">Back to Dashboard</a>
             </div>
 

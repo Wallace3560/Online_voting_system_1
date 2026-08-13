@@ -3236,6 +3236,102 @@ function getCandidateChangeLogsForCandidateIds($candidate_ids, $limit_per_candid
     return $grouped;
 }
 
+function getCandidateChangeHistory($filters = [], $limit = 500) {
+    global $conn;
+    if (!hasDbConnection()) {
+        return [];
+    }
+
+    $candidate_id = (int)($filters['candidate_id'] ?? 0);
+    $admin_id = (int)($filters['admin_id'] ?? 0);
+    $change_type = trim((string)($filters['change_type'] ?? ''));
+    $date_from = trim((string)($filters['date_from'] ?? ''));
+    $date_to = trim((string)($filters['date_to'] ?? ''));
+
+    $query = "SELECT l.change_id, l.candidate_id, l.admin_id, l.change_type, l.change_reason, l.created_at,
+                     c.full_name AS candidate_name, c.party_name,
+                     p.position_name,
+                     a.full_name AS admin_name, a.admin_role
+              FROM candidate_change_logs l
+              LEFT JOIN candidates c ON c.candidate_id = l.candidate_id
+              LEFT JOIN positions p ON p.position_id = c.position_id
+              LEFT JOIN admins a ON a.admin_id = l.admin_id
+              WHERE 1=1";
+
+    $types = '';
+    $params = [];
+
+    if ($candidate_id > 0) {
+        $query .= " AND l.candidate_id = ?";
+        $types .= 'i';
+        $params[] = $candidate_id;
+    }
+
+    if ($admin_id > 0) {
+        $query .= " AND l.admin_id = ?";
+        $types .= 'i';
+        $params[] = $admin_id;
+    }
+
+    if ($change_type !== '') {
+        $query .= " AND l.change_type = ?";
+        $types .= 's';
+        $params[] = $change_type;
+    }
+
+    if ($date_from !== '') {
+        $query .= " AND l.created_at >= ?";
+        $types .= 's';
+        $params[] = $date_from . ' 00:00:00';
+    }
+
+    if ($date_to !== '') {
+        $query .= " AND l.created_at <= ?";
+        $types .= 's';
+        $params[] = $date_to . ' 23:59:59';
+    }
+
+    $query .= " ORDER BY l.created_at DESC, l.change_id DESC";
+
+    $safe_limit = (int)$limit;
+    if ($safe_limit > 0) {
+        $query .= " LIMIT " . $safe_limit;
+    }
+
+    $stmt = mysqli_prepare($conn, $query);
+    if (!$stmt) {
+        return [];
+    }
+
+    if ($types !== '') {
+        mysqli_stmt_bind_param($stmt, $types, ...$params);
+    }
+
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    return $result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
+}
+
+function getCandidateChangeTypes() {
+    global $conn;
+    if (!hasDbConnection()) {
+        return [];
+    }
+
+    $result = mysqli_query($conn, "SELECT DISTINCT change_type FROM candidate_change_logs ORDER BY change_type ASC");
+    $rows = $result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
+    $types = [];
+
+    foreach ($rows as $row) {
+        $value = trim((string)($row['change_type'] ?? ''));
+        if ($value !== '') {
+            $types[] = $value;
+        }
+    }
+
+    return $types;
+}
+
 function deactivateCandidateFromBallot($candidate_id, $reason = 'Removed from ballot box.', $admin_id = 0, $change_type = 'removed_or_duplicate') {
     global $conn;
     if (!hasDbConnection()) {

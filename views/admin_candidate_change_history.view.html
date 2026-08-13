@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<!--
+  Overview: Admin Candidate Change History
+  Purpose: Displays candidate change history with filters and CSV export.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candidate Change History</title>
+    <link rel="stylesheet" href="assets/css/views/admin_verify_voters.css">
+    <link rel="stylesheet" href="assets/css/global_menu.css">
+    <script src="assets/js/global_menu.js?v=20260708" defer></script>
+</head>
+<body>
+<div class="main-container">
+    <div class="card" style="max-width: 1240px; margin: 0 auto;">
+        <div class="card-header">
+            <h2>Candidate Change History</h2>
+            <p>Audit trail of candidate edits, removals, and ballot-related corrections.</p>
+            <p>Signed in as role: <strong><?php echo htmlspecialchars($admin_role ?? 'super_admin'); ?></strong></p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px;">
+                <a href="admin_verify_voters.php" class="btn btn-secondary">Back to Dashboard</a>
+                <a href="admin_records.php?type=candidates" class="btn btn-secondary">Back to Candidate Records</a>
+                <a href="admin_logout.php" class="btn btn-danger">Admin Logout</a>
+            </div>
+        </div>
+        <div class="card-body">
+            <?php if (!empty($error)): ?>
+                <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+            <?php endif; ?>
+
+            <form method="GET" action="admin_candidate_change_history.php" style="margin-bottom: 14px;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Candidate</label>
+                        <select name="candidate_id">
+                            <option value="">All Candidates</option>
+                            <?php foreach ($candidate_filter_options as $option): ?>
+                                <?php
+                                    $opt_id = (int)($option['candidate_id'] ?? 0);
+                                    $opt_name = (string)($option['candidate_name'] ?? 'Candidate');
+                                    $opt_party = (string)($option['party_name'] ?? '');
+                                    $opt_position = (string)($option['position_name'] ?? '');
+                                    $opt_label = $opt_name;
+                                    if ($opt_party !== '') {
+                                        $opt_label .= ' - ' . $opt_party;
+                                    }
+                                    if ($opt_position !== '') {
+                                        $opt_label .= ' (' . $opt_position . ')';
+                                    }
+                                ?>
+                                <option value="<?php echo $opt_id; ?>" <?php echo ($candidate_id === $opt_id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($opt_label); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Changed By (Admin)</label>
+                        <select name="admin_id">
+                            <option value="">All Admins</option>
+                            <?php foreach ($admin_filter_options as $option): ?>
+                                <?php
+                                    $opt_id = (int)($option['admin_id'] ?? 0);
+                                    $opt_name = (string)($option['full_name'] ?? 'Admin');
+                                    $opt_role = (string)($option['admin_role'] ?? '');
+                                    $opt_label = $opt_name . ($opt_role !== '' ? ' (' . $opt_role . ')' : '');
+                                ?>
+                                <option value="<?php echo $opt_id; ?>" <?php echo ($admin_id === $opt_id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($opt_label); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Change Type</label>
+                        <select name="change_type">
+                            <option value="">All Types</option>
+                            <?php foreach ($change_type_options as $type_option): ?>
+                                <option value="<?php echo htmlspecialchars($type_option); ?>" <?php echo ($change_type === $type_option) ? 'selected' : ''; ?>><?php echo htmlspecialchars($type_option); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Date From</label>
+                        <input type="date" name="date_from" value="<?php echo htmlspecialchars($date_from); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>Date To</label>
+                        <input type="date" name="date_to" value="<?php echo htmlspecialchars($date_to); ?>">
+                    </div>
+                    <div class="form-group" style="display:flex; gap:10px; align-items:flex-end;">
+                        <button class="btn btn-primary" type="submit">Apply Filters</button>
+                        <a class="btn btn-danger" href="admin_candidate_change_history.php">Reset</a>
+                    </div>
+                </div>
+            </form>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 12px;">
+                <?php
+                    $export_query = http_build_query([
+                        'candidate_id' => $candidate_id > 0 ? $candidate_id : null,
+                        'admin_id' => $admin_id > 0 ? $admin_id : null,
+                        'change_type' => $change_type !== '' ? $change_type : null,
+                        'date_from' => $date_from !== '' ? $date_from : null,
+                        'date_to' => $date_to !== '' ? $date_to : null,
+                        'export' => 'csv'
+                    ]);
+                ?>
+                <a class="btn btn-secondary" href="admin_candidate_change_history.php?<?php echo htmlspecialchars($export_query); ?>">Export CSV</a>
+            </div>
+
+            <div class="alert alert-info">Showing <?php echo (int)count($history_rows); ?> record(s).</div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date Time</th>
+                            <th>Candidate</th>
+                            <th>Changed By</th>
+                            <th>Change Type</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php if (empty($history_rows)): ?>
+                        <tr><td colspan="5">No candidate change history found for selected filters.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($history_rows as $row): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars((string)($row['created_at'] ?? '')); ?></td>
+                                <td>
+                                    <strong><?php echo htmlspecialchars((string)($row['candidate_name'] ?? 'Candidate')); ?></strong>
+                                    <div class="footer-note" style="text-align:left; margin-top:4px;">
+                                        <?php echo htmlspecialchars((string)($row['position_name'] ?? '-')); ?>
+                                        <?php if (!empty($row['party_name'])): ?> - <?php echo htmlspecialchars((string)$row['party_name']); ?><?php endif; ?>
+                                    </div>
+                                </td>
+                                <td>
+                                    <?php echo htmlspecialchars((string)($row['admin_name'] ?? 'Admin')); ?>
+                                    <?php if (!empty($row['admin_role'])): ?>
+                                        <div class="footer-note" style="text-align:left; margin-top:4px;">
+                                            <?php echo htmlspecialchars((string)$row['admin_role']); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo htmlspecialchars((string)($row['change_type'] ?? '')); ?></td>
+                                <td><?php echo nl2br(htmlspecialchars((string)($row['change_reason'] ?? ''))); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+window.__ROLE_HOME__ = 'admin_candidate_change_history.php';
+
+(function () {
+    var path = window.location.pathname || '';
+    var fromViewsTemplate = /\/views\/admin_candidate_change_history\.view\.html$/i.test(path);
+    var fromFilePreview = window.location.protocol === 'file:';
+
+    if (!fromViewsTemplate && !fromFilePreview) {
+        return;
+    }
+
+    var origin = window.location.origin && window.location.origin !== 'null'
+        ? window.location.origin
+        : 'http://127.0.0.1:8000';
+    var basePath = path.replace(/\/views\/[^/]+\.view\.html$/i, '');
+    window.location.href = origin + basePath + '/admin_candidate_change_history.php' + window.location.search;
+})();
+</script>
+</body>
+</html>
