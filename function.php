@@ -2980,6 +2980,22 @@ function getAllPositions() {
     return $result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
 }
 
+function normalizeCandidatePhotoPath($path) {
+    $value = trim((string)$path);
+    if ($value === '') {
+        return null;
+    }
+
+    // Keep remote URLs unchanged.
+    if (preg_match('/^https?:\/\//i', $value)) {
+        return $value;
+    }
+
+    $relative = ltrim(str_replace('\\', '/', $value), '/');
+    $absolute = __DIR__ . '/' . $relative;
+    return is_file($absolute) ? $value : null;
+}
+
 function getCandidatesForPosition($position_id) {
     global $conn;
     if (!hasDbConnection()) {
@@ -2997,7 +3013,13 @@ function getCandidatesForPosition($position_id) {
     mysqli_stmt_bind_param($stmt, "i", $position_id);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
-    return $result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
+    $rows = $result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
+
+    foreach ($rows as $index => $row) {
+        $rows[$index]['candidate_photo'] = normalizeCandidatePhotoPath($row['candidate_photo'] ?? null);
+    }
+
+    return $rows;
 }
 
 function updateCandidateAdminRecord($candidate_id, $position_id, $full_name, $party_name, $county_id = null, $constituency_id = null, $ward_id = null, $status = 'active', $force_apply = false) {
@@ -3255,7 +3277,7 @@ function getScopedBallot($voter_id) {
                 'candidate_id' => (int)$row['candidate_id'],
                 'full_name' => $row['full_name'],
                 'party_name' => $row['party_name'],
-                'candidate_photo' => $row['candidate_photo']
+                'candidate_photo' => normalizeCandidatePhotoPath($row['candidate_photo'] ?? null)
             ];
         }
     }
@@ -4048,7 +4070,13 @@ function getByElectionCandidates($by_election_id) {
     mysqli_stmt_bind_param($stmt, "i", $by_election_id);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
-    return $result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
+    $rows = $result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
+
+    foreach ($rows as $index => $row) {
+        $rows[$index]['candidate_photo'] = normalizeCandidatePhotoPath($row['candidate_photo'] ?? null);
+    }
+
+    return $rows;
 }
 
 function getActiveByElectionsForVoter($voter_id) {
