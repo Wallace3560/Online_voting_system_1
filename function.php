@@ -4768,9 +4768,9 @@ function buildCandidateScopeFilterSql($filters, $candidate_alias = 'c') {
 function getTurnoutStats() {
     $registered = getTotalRegisteredVoters();
     $votes_cast = getTotalVotesCast();
-    $turnout = $registered > 0 ? round(($votes_cast / $registered) * 100, 2) : 0;
     $voters_voted = getTotalVotersWhoVoted();
     $voters_not_voted = max(0, $registered - $voters_voted);
+    $turnout = $registered > 0 ? round(($voters_voted / $registered) * 100, 2) : 0;
     $voted_percentage = $registered > 0 ? round(($voters_voted / $registered) * 100, 2) : 0;
     $not_voted_percentage = $registered > 0 ? round(($voters_not_voted / $registered) * 100, 2) : 0;
 
