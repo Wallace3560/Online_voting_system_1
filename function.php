@@ -2014,6 +2014,18 @@ function ensureElectionSchema() {
         INDEX idx_manual_approvals_admin (admin_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS candidate_change_logs (
+        change_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        candidate_id INT NOT NULL,
+        admin_id INT NULL,
+        change_type VARCHAR(64) NOT NULL,
+        change_reason TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_candidate_change_candidate (candidate_id),
+        INDEX idx_candidate_change_admin (admin_id),
+        INDEX idx_candidate_change_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
     // Backward-compatible migration for legacy election_settings schema.
     $column_check = mysqli_query($conn, "SHOW COLUMNS FROM election_settings LIKE 'setting_key'");
     if ($column_check && mysqli_num_rows($column_check) === 0) {
@@ -3139,6 +3151,144 @@ function updateCandidateAdminRecord($candidate_id, $position_id, $full_name, $pa
     }
 }
 
+function recordCandidateChangeLog($candidate_id, $admin_id, $change_type, $change_reason) {
+    global $conn;
+    if (!hasDbConnection()) {
+        return false;
+    }
+
+    $candidate_id = (int)$candidate_id;
+    $admin_id = (int)$admin_id;
+    $change_type = trim((string)$change_type);
+    $change_reason = trim((string)$change_reason);
+
+    if ($candidate_id <= 0 || $change_type === '' || $change_reason === '') {
+        return false;
+    }
+
+    $query = "INSERT INTO candidate_change_logs (candidate_id, admin_id, change_type, change_reason)
+              VALUES (?, ?, ?, ?)";
+    $stmt = mysqli_prepare($conn, $query);
+    if (!$stmt) {
+        return false;
+    }
+    mysqli_stmt_bind_param($stmt, "iiss", $candidate_id, $admin_id, $change_type, $change_reason);
+    return mysqli_stmt_execute($stmt);
+}
+
+function getCandidateChangeLogsForCandidateIds($candidate_ids, $limit_per_candidate = 5) {
+    global $conn;
+    if (!hasDbConnection() || !is_array($candidate_ids) || empty($candidate_ids)) {
+        return [];
+    }
+
+    $ids = array_values(array_unique(array_map('intval', $candidate_ids)));
+    $ids = array_values(array_filter($ids, function ($id) {
+        return $id > 0;
+    }));
+
+    if (empty($ids)) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $types = str_repeat('i', count($ids));
+
+    $query = "SELECT l.change_id, l.candidate_id, l.admin_id, l.change_type, l.change_reason, l.created_at,
+                     a.full_name AS admin_name
+              FROM candidate_change_logs l
+              LEFT JOIN admins a ON a.admin_id = l.admin_id
+              WHERE l.candidate_id IN (" . $placeholders . ")
+              ORDER BY l.created_at DESC, l.change_id DESC";
+    $stmt = mysqli_prepare($conn, $query);
+    if (!$stmt) {
+        return [];
+    }
+
+    mysqli_stmt_bind_param($stmt, $types, ...$ids);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $rows = $result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
+
+    $grouped = [];
+    $counts = [];
+    $limit = max(1, (int)$limit_per_candidate);
+
+    foreach ($rows as $row) {
+        $candidate_id = (int)($row['candidate_id'] ?? 0);
+        if ($candidate_id <= 0) {
+            continue;
+        }
+
+        $counts[$candidate_id] = (int)($counts[$candidate_id] ?? 0);
+        if ($counts[$candidate_id] >= $limit) {
+            continue;
+        }
+
+        if (!isset($grouped[$candidate_id])) {
+            $grouped[$candidate_id] = [];
+        }
+
+        $grouped[$candidate_id][] = $row;
+        $counts[$candidate_id]++;
+    }
+
+    return $grouped;
+}
+
+function deactivateCandidateFromBallot($candidate_id, $reason = 'Removed from ballot box.', $admin_id = 0, $change_type = 'removed_or_duplicate') {
+    global $conn;
+    if (!hasDbConnection()) {
+        return ['ok' => false, 'message' => 'Database is unavailable.'];
+    }
+
+    $candidate_id = (int)$candidate_id;
+    $reason = trim((string)$reason);
+    if ($candidate_id <= 0) {
+        return ['ok' => false, 'message' => 'Invalid candidate selected.'];
+    }
+    if ($reason === '') {
+        return ['ok' => false, 'message' => 'Please provide a reason for candidate removal.'];
+    }
+
+    $candidate_query = "SELECT candidate_id, full_name, status FROM candidates WHERE candidate_id = ? LIMIT 1";
+    $candidate_stmt = mysqli_prepare($conn, $candidate_query);
+    if (!$candidate_stmt) {
+        return ['ok' => false, 'message' => 'Unable to load candidate record.'];
+    }
+    mysqli_stmt_bind_param($candidate_stmt, "i", $candidate_id);
+    mysqli_stmt_execute($candidate_stmt);
+    $candidate_result = mysqli_stmt_get_result($candidate_stmt);
+    $candidate = $candidate_result ? mysqli_fetch_assoc($candidate_result) : null;
+
+    if (!$candidate) {
+        return ['ok' => false, 'message' => 'Candidate not found.'];
+    }
+
+    if (($candidate['status'] ?? '') === 'inactive') {
+        recordCandidateChangeLog($candidate_id, (int)$admin_id, $change_type, $reason);
+        return ['ok' => true, 'message' => 'Candidate is already inactive.', 'reason' => $reason];
+    }
+
+    $update_stmt = mysqli_prepare($conn, "UPDATE candidates SET status = 'inactive' WHERE candidate_id = ? LIMIT 1");
+    if (!$update_stmt) {
+        return ['ok' => false, 'message' => 'Unable to deactivate candidate.'];
+    }
+    mysqli_stmt_bind_param($update_stmt, "i", $candidate_id);
+    if (!mysqli_stmt_execute($update_stmt)) {
+        return ['ok' => false, 'message' => 'Unable to deactivate candidate.'];
+    }
+
+    recordCandidateChangeLog($candidate_id, (int)$admin_id, $change_type, $reason);
+
+    return [
+        'ok' => true,
+        'message' => 'Candidate marked inactive successfully. Voters will no longer see this candidate on the ballot.',
+        'reason' => $reason,
+        'candidate_name' => (string)($candidate['full_name'] ?? '')
+    ];
+}
+
 function markCandidateDeceasedAndDraftByElection($candidate_id, $admin_id, $deceased_reason) {
     global $conn;
     if (!hasDbConnection()) {
@@ -3173,6 +3323,8 @@ function markCandidateDeceasedAndDraftByElection($candidate_id, $admin_id, $dece
     if (!$candidate) {
         return ['ok' => false, 'message' => 'Candidate not found.'];
     }
+
+    recordCandidateChangeLog($candidate_id, $admin_id, 'deceased_or_removed', $deceased_reason);
 
     mysqli_begin_transaction($conn);
     try {

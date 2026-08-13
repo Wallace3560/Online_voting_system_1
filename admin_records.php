@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     $action = sanitize($_POST['action'] ?? '');
-    $admin_actions = ['update_voter', 'force_reject_voter', 'update_candidate', 'mark_candidate_deceased', 'approve_voter', 'reject_voter', 'request_voter_corrections'];
+    $admin_actions = ['update_voter', 'force_reject_voter', 'update_candidate', 'deactivate_candidate', 'mark_candidate_deceased', 'approve_voter', 'reject_voter', 'request_voter_corrections'];
 
     if ($error === '' && in_array($action, $admin_actions, true) && !$can_manage) {
         $error = 'Your role does not have permission to perform this action.';
@@ -136,6 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $party_name = sanitize($_POST['party_name'] ?? '');
         $status = sanitize($_POST['status'] ?? 'active');
         $force_apply_changes = !empty($_POST['force_apply_changes']);
+        $status_change_reason = sanitize($_POST['status_change_reason'] ?? '');
 
         $county_id = (int)($_POST['county_id'] ?? 0);
         $constituency_id = (int)($_POST['constituency_id'] ?? 0);
@@ -143,6 +144,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         if ($candidate_id <= 0 || $position_id <= 0 || $full_name === '' || $party_name === '') {
             $error = 'Candidate details are incomplete for update.';
+        } elseif ($status === 'inactive' && $status_change_reason === '') {
+            $error = 'Please type a reason when setting candidate status to inactive.';
         } else {
             $update_result = updateCandidateAdminRecord(
                 $candidate_id,
@@ -158,6 +161,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             if (!empty($update_result['ok'])) {
                 $message = (string)($update_result['message'] ?? 'Candidate updated successfully.');
+                if ($status === 'inactive') {
+                    recordCandidateChangeLog($candidate_id, (int)$_SESSION['admin_id'], 'status_set_inactive', $status_change_reason);
+                }
                 logAuditEvent('admin', (int)$_SESSION['admin_id'], 'candidate_updated_from_records_page', [
                     'candidate_id' => $candidate_id,
                     'status' => $status,
@@ -168,6 +174,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
         }
         }
+    } elseif ($error === '' && $action === 'deactivate_candidate') {
+        if (!$can_access_candidate_records) {
+            $error = 'Only super-admin and sub-admin roles can access candidate correction records.';
+        }
+
+        if ($error === '') {
+            $candidate_id = (int)($_POST['candidate_id'] ?? 0);
+            $deactivate_reason = sanitize($_POST['deactivate_reason'] ?? '');
+            if ($deactivate_reason === '') {
+                $error = 'Please type a reason for removing this candidate from ballot visibility.';
+            }
+        }
+
+        if ($error === '') {
+            $candidate_id = (int)($_POST['candidate_id'] ?? 0);
+            $deactivate_reason = sanitize($_POST['deactivate_reason'] ?? '');
+            $deactivate_result = deactivateCandidateFromBallot($candidate_id, $deactivate_reason, (int)$_SESSION['admin_id'], 'duplicate_or_removed');
+
+            if (!empty($deactivate_result['ok'])) {
+                $message = (string)$deactivate_result['message'];
+                logAuditEvent('admin', (int)$_SESSION['admin_id'], 'candidate_marked_inactive_from_records_page', [
+                    'candidate_id' => $candidate_id,
+                    'reason' => $deactivate_reason,
+                    'candidate_name' => (string)($deactivate_result['candidate_name'] ?? '')
+                ]);
+            } else {
+                $error = (string)($deactivate_result['message'] ?? 'Failed to mark candidate inactive.');
+            }
+        }
     } elseif ($error === '' && $action === 'mark_candidate_deceased') {
         if (!$can_access_candidate_records) {
             $error = 'Only super-admin and sub-admin roles can access candidate correction records.';
@@ -177,9 +212,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             // Stop this action when role is not allowed.
         } else {
         $candidate_id = (int)($_POST['candidate_id'] ?? 0);
-        $deceased_reason = sanitize($_POST['deceased_reason'] ?? 'Candidate died while in office.');
+        $deceased_reason = sanitize($_POST['deceased_reason'] ?? '');
 
-        $deceased_result = markCandidateDeceasedAndDraftByElection($candidate_id, (int)$_SESSION['admin_id'], $deceased_reason);
+        if ($deceased_reason === '') {
+            $error = 'Please type a reason for this candidate change.';
+        }
+
+        $deceased_result = $error === ''
+            ? markCandidateDeceasedAndDraftByElection($candidate_id, (int)$_SESSION['admin_id'], $deceased_reason)
+            : ['ok' => false, 'message' => $error];
         if (!empty($deceased_result['ok'])) {
             $message = (string)$deceased_result['message'];
             logAuditEvent('admin', (int)$_SESSION['admin_id'], 'candidate_marked_deceased_from_records_page', [
@@ -210,6 +251,7 @@ $query_lc = strtolower($query);
 
 $rows = [];
 $title = 'All Registered Voters';
+$candidate_change_logs_map = [];
 
 if ($type === 'candidates') {
     $title = 'Configured Candidates';
@@ -265,6 +307,13 @@ if ($query_lc !== '') {
         );
         return strpos($haystack, $query_lc) !== false;
     }));
+}
+
+if ($type === 'candidates' && !empty($rows)) {
+    $candidate_ids = array_map(function ($row) {
+        return (int)($row['candidate_id'] ?? 0);
+    }, $rows);
+    $candidate_change_logs_map = getCandidateChangeLogsForCandidateIds($candidate_ids, 5);
 }
 
 $csrf_token = getCsrfToken();
