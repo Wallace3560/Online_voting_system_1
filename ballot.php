@@ -33,8 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $votes = $_POST['votes'] ?? [];
         $vote_result = submitFinalBallot($voter_id, $votes);
         if ($vote_result['ok']) {
-            $message = $vote_result['message'];
-            $is_finalized = true;
+            $_SESSION['results_flash_message'] = (string)$vote_result['message'];
+            header('Location: results.php?vote_submitted=1');
+            exit();
         } else {
             $error = $vote_result['message'];
         }

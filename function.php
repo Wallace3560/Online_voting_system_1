@@ -4626,17 +4626,24 @@ function archiveAndResetElectionData($election_year, $admin_id, $archive_note = 
     }
 }
 
-function getElectionResultsData() {
+function getElectionResultsData($filters = []) {
     global $conn;
     if (!hasDbConnection()) {
         return [];
     }
+
+    $location_filter = buildVoteLocationFilterSql($filters, 'vv');
+    $candidate_filter = buildCandidateScopeFilterSql($filters, 'c');
+
     $query = "SELECT p.position_id, p.position_name, c.candidate_id, c.full_name, c.party_name,
                      COUNT(v.vote_id) AS votes
               FROM positions p
               LEFT JOIN candidates c ON c.position_id = p.position_id AND c.status = 'active'
               LEFT JOIN votes v ON v.candidate_id = c.candidate_id
+              LEFT JOIN voters vv ON vv.voter_id = v.voter_id
               WHERE p.status = 'active'
+                " . $candidate_filter['sql'] . "
+                " . $location_filter['sql'] . "
               GROUP BY p.position_id, p.position_name, c.candidate_id, c.full_name, c.party_name
               ORDER BY p.display_order ASC, votes DESC, c.full_name ASC";
     $result = mysqli_query($conn, $query);
@@ -4668,26 +4675,225 @@ function getElectionResultsData() {
 
     foreach ($grouped as $position_id => $position) {
         $total_votes = $position['total_votes'];
+        $leader_votes = 0;
+        $leader_percentage = 0;
+
+        if (!empty($position['candidates'])) {
+            $leader_votes = (int)($position['candidates'][0]['votes'] ?? 0);
+        }
+
         foreach ($position['candidates'] as $index => $candidate) {
             $pct = $total_votes > 0 ? round(($candidate['votes'] / $total_votes) * 100, 2) : 0;
             $grouped[$position_id]['candidates'][$index]['percentage'] = $pct;
             $grouped[$position_id]['candidates'][$index]['is_leading'] = ($index === 0 && $candidate['votes'] > 0);
+
+            if ($index === 0) {
+                $leader_percentage = $pct;
+            }
+
+            $grouped[$position_id]['candidates'][$index]['gap_from_leader_votes'] = max(0, $leader_votes - (int)$candidate['votes']);
+            $grouped[$position_id]['candidates'][$index]['gap_from_leader_percentage'] = round(max(0, $leader_percentage - $pct), 2);
         }
+
+        $runner_up_votes = isset($position['candidates'][1]) ? (int)$position['candidates'][1]['votes'] : 0;
+        $runner_up_percentage = isset($grouped[$position_id]['candidates'][1]['percentage']) ? (float)$grouped[$position_id]['candidates'][1]['percentage'] : 0;
+
+        $grouped[$position_id]['leader_gap_over_runner_up_votes'] = max(0, $leader_votes - $runner_up_votes);
+        $grouped[$position_id]['leader_gap_over_runner_up_percentage'] = round(max(0, $leader_percentage - $runner_up_percentage), 2);
     }
 
     return array_values($grouped);
+}
+
+function buildVoteLocationFilterSql($filters, $voter_alias = 'vv') {
+    $county_id = isset($filters['county_id']) ? (int)$filters['county_id'] : 0;
+    $constituency_id = isset($filters['constituency_id']) ? (int)$filters['constituency_id'] : 0;
+    $ward_id = isset($filters['ward_id']) ? (int)$filters['ward_id'] : 0;
+
+    if ($ward_id > 0) {
+        return ['sql' => " AND (v.vote_id IS NULL OR {$voter_alias}.ward_id = {$ward_id})"];
+    }
+    if ($constituency_id > 0) {
+        return ['sql' => " AND (v.vote_id IS NULL OR {$voter_alias}.constituency_id = {$constituency_id})"];
+    }
+    if ($county_id > 0) {
+        return ['sql' => " AND (v.vote_id IS NULL OR {$voter_alias}.county_id = {$county_id})"];
+    }
+
+    return ['sql' => ''];
+}
+
+function buildCandidateScopeFilterSql($filters, $candidate_alias = 'c') {
+    $county_id = isset($filters['county_id']) ? (int)$filters['county_id'] : 0;
+    $constituency_id = isset($filters['constituency_id']) ? (int)$filters['constituency_id'] : 0;
+    $ward_id = isset($filters['ward_id']) ? (int)$filters['ward_id'] : 0;
+
+    if ($ward_id > 0) {
+        return [
+            'sql' => " AND (
+                c.candidate_id IS NULL
+                OR p.scope = 'national'
+                OR (p.scope = 'county' AND {$candidate_alias}.county_id = {$county_id})
+                OR (p.scope = 'constituency' AND {$candidate_alias}.constituency_id = {$constituency_id})
+                OR (p.scope = 'ward' AND {$candidate_alias}.ward_id = {$ward_id})
+            )"
+        ];
+    }
+
+    if ($constituency_id > 0) {
+        return [
+            'sql' => " AND (
+                c.candidate_id IS NULL
+                OR p.scope = 'national'
+                OR (p.scope = 'county' AND {$candidate_alias}.county_id = {$county_id})
+                OR (p.scope = 'constituency' AND {$candidate_alias}.constituency_id = {$constituency_id})
+            )"
+        ];
+    }
+
+    if ($county_id > 0) {
+        return [
+            'sql' => " AND (
+                c.candidate_id IS NULL
+                OR p.scope = 'national'
+                OR (p.scope = 'county' AND {$candidate_alias}.county_id = {$county_id})
+            )"
+        ];
+    }
+
+    return ['sql' => ''];
 }
 
 function getTurnoutStats() {
     $registered = getTotalRegisteredVoters();
     $votes_cast = getTotalVotesCast();
     $turnout = $registered > 0 ? round(($votes_cast / $registered) * 100, 2) : 0;
+    $voters_voted = getTotalVotersWhoVoted();
+    $voters_not_voted = max(0, $registered - $voters_voted);
+    $voted_percentage = $registered > 0 ? round(($voters_voted / $registered) * 100, 2) : 0;
+    $not_voted_percentage = $registered > 0 ? round(($voters_not_voted / $registered) * 100, 2) : 0;
 
     return [
         'registered_voters' => $registered,
         'votes_cast' => $votes_cast,
-        'turnout_percentage' => $turnout
+        'turnout_percentage' => $turnout,
+        'voters_voted' => $voters_voted,
+        'voters_not_voted' => $voters_not_voted,
+        'voted_percentage' => $voted_percentage,
+        'not_voted_percentage' => $not_voted_percentage
     ];
+}
+
+function getTotalVotersWhoVoted() {
+    global $conn;
+    if (!hasDbConnection()) {
+        return 0;
+    }
+
+    $query = "SELECT COUNT(*) AS total
+              FROM voters
+              WHERE status = 'active'
+                AND verification_status = 'verified'
+                AND has_voted_final = 1";
+    $result = mysqli_query($conn, $query);
+    if (!$result) {
+        return 0;
+    }
+
+    $row = mysqli_fetch_assoc($result);
+    return (int)($row['total'] ?? 0);
+}
+
+function getVoterTurnoutComparisonStats($voter_id) {
+    $voter = getVoterById((int)$voter_id);
+    if (!$voter) {
+        return [
+            'country' => buildTurnoutSummaryForScope([], 'Country (National)'),
+            'county' => buildTurnoutSummaryForScope([], 'Your County'),
+            'constituency' => buildTurnoutSummaryForScope([], 'Your Constituency'),
+            'ward' => buildTurnoutSummaryForScope([], 'Your Ward')
+        ];
+    }
+
+    return [
+        'country' => buildTurnoutSummaryForScope([], 'Country (National)'),
+        'county' => buildTurnoutSummaryForScope(['county_id' => (int)($voter['county_id'] ?? 0)], 'Your County'),
+        'constituency' => buildTurnoutSummaryForScope(['constituency_id' => (int)($voter['constituency_id'] ?? 0)], 'Your Constituency'),
+        'ward' => buildTurnoutSummaryForScope(['ward_id' => (int)($voter['ward_id'] ?? 0)], 'Your Ward')
+    ];
+}
+
+function buildTurnoutSummaryForScope($filters, $label) {
+    global $conn;
+
+    $stats = [
+        'label' => (string)$label,
+        'registered_voters' => 0,
+        'voters_voted' => 0,
+        'voters_not_voted' => 0,
+        'voted_percentage' => 0,
+        'not_voted_percentage' => 0
+    ];
+
+    if (!hasDbConnection()) {
+        return $stats;
+    }
+
+    $clauses = [];
+    $types = '';
+    $params = [];
+
+    if (!empty($filters['county_id'])) {
+        $clauses[] = 'county_id = ?';
+        $types .= 'i';
+        $params[] = (int)$filters['county_id'];
+    }
+    if (!empty($filters['constituency_id'])) {
+        $clauses[] = 'constituency_id = ?';
+        $types .= 'i';
+        $params[] = (int)$filters['constituency_id'];
+    }
+    if (!empty($filters['ward_id'])) {
+        $clauses[] = 'ward_id = ?';
+        $types .= 'i';
+        $params[] = (int)$filters['ward_id'];
+    }
+
+    $where = "status = 'active' AND verification_status = 'verified'";
+    if (!empty($clauses)) {
+        $where .= ' AND ' . implode(' AND ', $clauses);
+    }
+
+    $query = "SELECT
+                COUNT(*) AS registered_voters,
+                SUM(CASE WHEN has_voted_final = 1 THEN 1 ELSE 0 END) AS voters_voted
+              FROM voters
+              WHERE " . $where;
+
+    $stmt = mysqli_prepare($conn, $query);
+    if (!$stmt) {
+        return $stats;
+    }
+
+    if (!empty($params)) {
+        mysqli_stmt_bind_param($stmt, $types, ...$params);
+    }
+
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = $result ? mysqli_fetch_assoc($result) : null;
+
+    $registered = (int)($row['registered_voters'] ?? 0);
+    $voted = (int)($row['voters_voted'] ?? 0);
+    $not_voted = max(0, $registered - $voted);
+
+    $stats['registered_voters'] = $registered;
+    $stats['voters_voted'] = $voted;
+    $stats['voters_not_voted'] = $not_voted;
+    $stats['voted_percentage'] = $registered > 0 ? round(($voted / $registered) * 100, 2) : 0;
+    $stats['not_voted_percentage'] = $registered > 0 ? round(($not_voted / $registered) * 100, 2) : 0;
+
+    return $stats;
 }
 
 ensureSecuritySchema();

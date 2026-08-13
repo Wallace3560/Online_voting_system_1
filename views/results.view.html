@@ -20,6 +20,86 @@
             <p>Automated digital tallying for all completed ballots.</p>
         </div>
         <div class="card-body">
+            <?php if (!empty($flash_message)): ?>
+                <div class="alert alert-success"><?php echo htmlspecialchars($flash_message); ?></div>
+            <?php endif; ?>
+
+            <h3 style="margin-top: 8px;">Search Results By Location</h3>
+            <form method="GET" action="results.php" class="location-search-form" style="margin-bottom: 16px;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="county_id">County (required to search places)</label>
+                        <select id="county_id" name="county_id">
+                            <option value="0">All Counties (National View)</option>
+                            <?php foreach ($counties as $county): ?>
+                                <option value="<?php echo (int)$county['county_id']; ?>" <?php echo ((int)$selected_county_id === (int)$county['county_id']) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars((string)$county['county_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="constituency_id">Constituency (after county)</label>
+                        <select id="constituency_id" name="constituency_id" <?php echo $selected_county_id > 0 ? '' : 'disabled'; ?>>
+                            <option value="0">All Constituencies In County</option>
+                            <?php foreach ($constituencies as $constituency): ?>
+                                <option value="<?php echo (int)$constituency['constituency_id']; ?>" <?php echo ((int)$selected_constituency_id === (int)$constituency['constituency_id']) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars((string)$constituency['constituency_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="ward_id">Ward (after constituency)</label>
+                        <select id="ward_id" name="ward_id" <?php echo $selected_constituency_id > 0 ? '' : 'disabled'; ?>>
+                            <option value="0">All Wards In Constituency</option>
+                            <?php foreach ($wards as $ward): ?>
+                                <option value="<?php echo (int)$ward['ward_id']; ?>" <?php echo ((int)$selected_ward_id === (int)$ward['ward_id']) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars((string)$ward['ward_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group" style="justify-content:flex-end;">
+                        <label>&nbsp;</label>
+                        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                            <button type="submit" class="btn btn-primary">Search Place Results</button>
+                            <a href="results.php" class="btn btn-secondary">Reset</a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <?php if (!empty($selected_area_turnout)): ?>
+                <h3 style="margin-top: 12px;">Selected Area Turnout Snapshot</h3>
+                <div class="table-wrap" style="margin-bottom: 16px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Scope</th>
+                                <th>Registered</th>
+                                <th>Voted</th>
+                                <th>Not Voted</th>
+                                <th>Voted %</th>
+                                <th>Not Voted %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><?php echo htmlspecialchars((string)($selected_area_turnout['label'] ?? 'Selected Area')); ?></td>
+                                <td><?php echo (int)($selected_area_turnout['registered_voters'] ?? 0); ?></td>
+                                <td><?php echo (int)($selected_area_turnout['voters_voted'] ?? 0); ?></td>
+                                <td><?php echo (int)($selected_area_turnout['voters_not_voted'] ?? 0); ?></td>
+                                <td><?php echo (float)($selected_area_turnout['voted_percentage'] ?? 0); ?>%</td>
+                                <td><?php echo (float)($selected_area_turnout['not_voted_percentage'] ?? 0); ?>%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+
             <div class="stats-grid" style="margin-bottom: 16px;">
                 <div class="stat-card"><p>Election Status</p><strong><?php echo $election_open ? 'OPEN' : 'CLOSED'; ?></strong></div>
                 <div class="stat-card"><p>Registered Voters</p><strong><?php echo (int)$turnout['registered_voters']; ?></strong></div>
@@ -27,13 +107,58 @@
                 <div class="stat-card"><p>Turnout</p><strong><?php echo (float)$turnout['turnout_percentage']; ?>%</strong></div>
             </div>
 
-            <?php if (!$results_published && !$admin_view): ?>
+            <div class="stats-grid" style="margin-bottom: 16px;">
+                <div class="stat-card"><p>Voters Who Voted (Country)</p><strong><?php echo (int)($turnout['voters_voted'] ?? 0); ?></strong></div>
+                <div class="stat-card"><p>Voters Not Voted (Country)</p><strong><?php echo (int)($turnout['voters_not_voted'] ?? 0); ?></strong></div>
+                <div class="stat-card"><p>Voted % (Country)</p><strong><?php echo (float)($turnout['voted_percentage'] ?? 0); ?>%</strong></div>
+                <div class="stat-card"><p>Not Voted % (Country)</p><strong><?php echo (float)($turnout['not_voted_percentage'] ?? 0); ?>%</strong></div>
+            </div>
+
+            <?php if (!empty($voter_view) && !empty($voter_turnout_comparison)): ?>
+                <h3 style="margin-top: 12px;">Your Location Vs Country Turnout</h3>
+                <div class="table-wrap" style="margin-bottom: 16px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Scope</th>
+                                <th>Registered</th>
+                                <th>Voted</th>
+                                <th>Not Voted</th>
+                                <th>Voted %</th>
+                                <th>Not Voted %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($voter_turnout_comparison as $scope_stats): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars((string)($scope_stats['label'] ?? 'Scope')); ?></td>
+                                    <td><?php echo (int)($scope_stats['registered_voters'] ?? 0); ?></td>
+                                    <td><?php echo (int)($scope_stats['voters_voted'] ?? 0); ?></td>
+                                    <td><?php echo (int)($scope_stats['voters_not_voted'] ?? 0); ?></td>
+                                    <td><?php echo (float)($scope_stats['voted_percentage'] ?? 0); ?>%</td>
+                                    <td><?php echo (float)($scope_stats['not_voted_percentage'] ?? 0); ?>%</td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+
+            <?php if (empty($can_view_results)): ?>
                 <div class="alert alert-info">Results are not published yet. Please check again after official release.</div>
             <?php elseif (empty($results)): ?>
                 <div class="alert alert-info">No tally data available yet.</div>
             <?php else: ?>
                 <?php foreach ($results as $position): ?>
                     <h3 style="margin-top: 18px;"><?php echo htmlspecialchars($position['position_name']); ?></h3>
+                    <p class="footer-note" style="text-align:left; margin:0 0 8px;">
+                        Showing Results For: <?php echo htmlspecialchars((string)$selected_location_path); ?>
+                    </p>
+                    <p class="footer-note" style="text-align:left; margin:0 0 8px;">
+                        Lead gap over runner-up:
+                        <?php echo (int)($position['leader_gap_over_runner_up_votes'] ?? 0); ?> votes
+                        (<?php echo (float)($position['leader_gap_over_runner_up_percentage'] ?? 0); ?>%)
+                    </p>
                     <div class="table-wrap">
                         <table>
                             <thead>
@@ -42,12 +167,13 @@
                                     <th>Party</th>
                                     <th>Votes</th>
                                     <th>Percent</th>
+                                    <th>Gap From Leader</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                             <?php if (empty($position['candidates'])): ?>
-                                <tr><td colspan="5">No candidates configured.</td></tr>
+                                <tr><td colspan="6">No candidates configured.</td></tr>
                             <?php else: ?>
                                 <?php foreach ($position['candidates'] as $candidate): ?>
                                     <tr>
@@ -55,6 +181,10 @@
                                         <td><?php echo htmlspecialchars($candidate['party_name']); ?></td>
                                         <td><?php echo (int)$candidate['votes']; ?></td>
                                         <td><?php echo (float)$candidate['percentage']; ?>%</td>
+                                        <td>
+                                            <?php echo (int)($candidate['gap_from_leader_votes'] ?? 0); ?> votes
+                                            (<?php echo (float)($candidate['gap_from_leader_percentage'] ?? 0); ?>%)
+                                        </td>
                                         <td>
                                             <?php if ($candidate['is_leading']): ?>
                                                 <span class="status-badge status-active">Leading</span>
@@ -88,6 +218,107 @@
     </div>
 </div>
 <script>
+(function () {
+    var flash = <?php echo json_encode((string)$flash_message); ?>;
+    if (flash) {
+        window.alert(flash);
+    }
+})();
+
+(function () {
+    var countyEl = document.getElementById('county_id');
+    var constituencyEl = document.getElementById('constituency_id');
+    var wardEl = document.getElementById('ward_id');
+
+    if (!countyEl || !constituencyEl || !wardEl) {
+        return;
+    }
+
+    var initialConstituencyId = <?php echo (int)$selected_constituency_id; ?>;
+    var initialWardId = <?php echo (int)$selected_ward_id; ?>;
+
+    function setSelectOptions(selectEl, items, valueKey, labelKey, placeholder, selectedValue) {
+        selectEl.innerHTML = '';
+
+        var base = document.createElement('option');
+        base.value = '0';
+        base.textContent = placeholder;
+        selectEl.appendChild(base);
+
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            var option = document.createElement('option');
+            option.value = String(item[valueKey] || 0);
+            option.textContent = String(item[labelKey] || '');
+            if (parseInt(option.value, 10) === parseInt(selectedValue || 0, 10)) {
+                option.selected = true;
+            }
+            selectEl.appendChild(option);
+        }
+    }
+
+    function disableAndReset(selectEl, placeholder) {
+        setSelectOptions(selectEl, [], 'id', 'name', placeholder, 0);
+        selectEl.disabled = true;
+    }
+
+    function loadConstituencies(countyId, selectedId) {
+        if (!countyId || countyId <= 0) {
+            disableAndReset(constituencyEl, 'All Constituencies In County');
+            disableAndReset(wardEl, 'All Wards In Constituency');
+            return Promise.resolve();
+        }
+
+        constituencyEl.disabled = true;
+        return fetch('api/get_constituencies.php?county_id=' + encodeURIComponent(String(countyId)))
+            .then(function (res) { return res.json(); })
+            .then(function (items) {
+                setSelectOptions(constituencyEl, items || [], 'constituency_id', 'constituency_name', 'All Constituencies In County', selectedId || 0);
+                constituencyEl.disabled = false;
+            })
+            .catch(function () {
+                disableAndReset(constituencyEl, 'All Constituencies In County');
+                disableAndReset(wardEl, 'All Wards In Constituency');
+            });
+    }
+
+    function loadWards(constituencyId, selectedId) {
+        if (!constituencyId || constituencyId <= 0) {
+            disableAndReset(wardEl, 'All Wards In Constituency');
+            return Promise.resolve();
+        }
+
+        wardEl.disabled = true;
+        return fetch('api/get_wards.php?constituency_id=' + encodeURIComponent(String(constituencyId)))
+            .then(function (res) { return res.json(); })
+            .then(function (items) {
+                setSelectOptions(wardEl, items || [], 'ward_id', 'ward_name', 'All Wards In Constituency', selectedId || 0);
+                wardEl.disabled = false;
+            })
+            .catch(function () {
+                disableAndReset(wardEl, 'All Wards In Constituency');
+            });
+    }
+
+    countyEl.addEventListener('change', function () {
+        loadConstituencies(parseInt(countyEl.value, 10) || 0, 0).then(function () {
+            disableAndReset(wardEl, 'All Wards In Constituency');
+        });
+    });
+
+    constituencyEl.addEventListener('change', function () {
+        loadWards(parseInt(constituencyEl.value, 10) || 0, 0);
+    });
+
+    if ((parseInt(countyEl.value, 10) || 0) > 0 && constituencyEl.options.length <= 1) {
+        loadConstituencies(parseInt(countyEl.value, 10) || 0, initialConstituencyId).then(function () {
+            if ((initialConstituencyId || 0) > 0 && wardEl.options.length <= 1) {
+                loadWards(initialConstituencyId, initialWardId);
+            }
+        });
+    }
+})();
+
 (function () {
     // view-redirect-guard: ensure template previews route to the controller endpoint
     var path = window.location.pathname || '';
