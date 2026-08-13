@@ -30,19 +30,34 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: #111111;
-    display: inline;
+    display: inline-flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.35em;
     padding: 0;
     border-radius: 0;
     text-shadow: none;
+    background: none !important;
+    -webkit-background-clip: border-box !important;
+    background-clip: border-box !important;
+    -webkit-text-fill-color: currentColor !important;
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    font-variant-ligatures: none;
+    text-rendering: geometricPrecision;
 }
 
 .iebc-word-independent,
 .iebc-word-commission {
     color: #000000;
+    background: none !important;
+    -webkit-text-fill-color: #000000 !important;
 }
 
 .iebc-word-electoral-boundaries {
     color: #be1e2d;
+    background: none !important;
+    -webkit-text-fill-color: #be1e2d !important;
 }
 
 .global-nav-fab {
