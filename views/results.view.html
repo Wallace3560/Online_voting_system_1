@@ -72,6 +72,24 @@
                 </div>
             </form>
 
+            <?php if (!empty($selected_area_filters)): ?>
+                <div class="location-selected-banner">
+                    <div class="location-selected-title">Filtered Results View</div>
+                    <div class="location-selected-path"><?php echo htmlspecialchars((string)$selected_location_path); ?></div>
+                    <div class="location-selected-chips">
+                        <?php if (!empty($selected_county_name)): ?>
+                            <span class="location-chip">County: <?php echo htmlspecialchars((string)$selected_county_name); ?></span>
+                        <?php endif; ?>
+                        <?php if (!empty($selected_constituency_name)): ?>
+                            <span class="location-chip">Constituency: <?php echo htmlspecialchars((string)$selected_constituency_name); ?></span>
+                        <?php endif; ?>
+                        <?php if (!empty($selected_ward_name)): ?>
+                            <span class="location-chip">Ward: <?php echo htmlspecialchars((string)$selected_ward_name); ?></span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <?php if (!empty($selected_area_turnout)): ?>
                 <h3 style="margin-top: 12px;">Selected Area Turnout Snapshot</h3>
                 <div class="table-wrap" style="margin-bottom: 16px;">
@@ -151,14 +169,14 @@
             <?php else: ?>
                 <?php foreach ($results as $position): ?>
                     <h3 style="margin-top: 18px;"><?php echo htmlspecialchars($position['position_name']); ?></h3>
-                    <p class="footer-note" style="text-align:left; margin:0 0 8px;">
-                        Showing Results For: <?php echo htmlspecialchars((string)$selected_location_path); ?>
-                    </p>
-                    <p class="footer-note" style="text-align:left; margin:0 0 8px;">
-                        Lead gap over runner-up:
-                        <?php echo (int)($position['leader_gap_over_runner_up_votes'] ?? 0); ?> votes
-                        (<?php echo (float)($position['leader_gap_over_runner_up_percentage'] ?? 0); ?>%)
-                    </p>
+                    <div class="result-scope-header">
+                        <span class="result-scope-label">Showing Results For:</span>
+                        <strong><?php echo htmlspecialchars((string)$selected_location_path); ?></strong>
+                        <span class="result-gap-pill">
+                            Lead Gap: <?php echo (int)($position['leader_gap_over_runner_up_votes'] ?? 0); ?> votes
+                            (<?php echo (float)($position['leader_gap_over_runner_up_percentage'] ?? 0); ?>%)
+                        </span>
+                    </div>
                     <div class="table-wrap">
                         <table>
                             <thead>
