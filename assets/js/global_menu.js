@@ -55,8 +55,7 @@
         { href: 'change_location.php', label: 'Change Location' },
         { href: 'results.php', label: 'Election Results' },
         { href: 'admin_login.php', label: 'Admin Login' },
-        { href: 'voter_logout.php', label: 'Voter Logout' },
-        { href: 'admin_logout.php', label: 'Admin Logout' }
+        { href: 'voter_logout.php', label: 'Voter Logout' }
     ];
 
     var panel = document.createElement('div');
