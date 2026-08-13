@@ -30,11 +30,10 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: #111111;
-    background: #ffffff;
-    display: inline-block;
-    padding: 0 8px;
-    border-radius: 6px;
-    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+    display: inline;
+    padding: 0;
+    border-radius: 0;
+    text-shadow: none;
 }
 
 .iebc-word-independent,
