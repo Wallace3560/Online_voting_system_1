@@ -34,6 +34,10 @@
                 <div class="stat-card"><p>Your Ward</p><strong><?php echo htmlspecialchars((string)$voter['ward_id']); ?></strong></div>
             </div>
 
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 12px;">
+                <a href="results.php" class="btn btn-secondary">View Results</a>
+            </div>
+
             <?php if (!empty($latest_location_change)): ?>
                 <div class="alert alert-info" style="margin-bottom: 12px;">
                     <strong>Relocation Request Status:</strong>
@@ -134,6 +138,71 @@
 
             <?php if (empty($ballot)): ?>
                 <div class="alert alert-info">No ballot positions are configured for your voting area yet.</div>
+            <?php elseif (!empty($is_finalized)): ?>
+                <h3 style="margin-top: 12px;">Your Finalized Ballot (Read-Only)</h3>
+                <?php foreach ($ballot as $position): ?>
+                    <div class="card" style="margin-bottom: 12px; border-radius: 12px;">
+                        <div class="card-body" style="padding: 16px;">
+                            <h3 style="margin-bottom: 6px;"><?php echo htmlspecialchars($position['position_name']); ?></h3>
+                            <p class="footer-note" style="text-align: left; margin-top: 0; margin-bottom: 10px;">Scope: <?php echo htmlspecialchars(ucfirst($position['scope'])); ?></p>
+
+                            <?php if (empty($position['candidates'])): ?>
+                                <div class="alert alert-info">No candidates configured for this position.</div>
+                            <?php else: ?>
+                                <?php
+                                    $selected_candidate_name = 'No selection recorded';
+                                    foreach ($position['candidates'] as $candidate) {
+                                        if ((int)($position['selected_candidate_id'] ?? 0) === (int)($candidate['candidate_id'] ?? 0)) {
+                                            $selected_candidate_name = (string)($candidate['full_name'] ?? 'No selection recorded');
+                                            break;
+                                        }
+                                    }
+                                ?>
+                                <div class="alert alert-info" style="margin-bottom: 8px;">
+                                    <strong>Selected Candidate:</strong> <?php echo htmlspecialchars($selected_candidate_name); ?>
+                                </div>
+                                <div class="table-wrap">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Candidate</th>
+                                                <th>Party</th>
+                                                <th>Selection Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                        <?php foreach ($position['candidates'] as $candidate): ?>
+                                            <?php $is_selected = ((int)($position['selected_candidate_id'] ?? 0) === (int)($candidate['candidate_id'] ?? 0)); ?>
+                                            <tr>
+                                                <td>
+                                                    <div class="ballot-candidate-cell">
+                                                        <?php if (!empty($candidate['candidate_photo'])): ?>
+                                                            <img src="<?php echo htmlspecialchars($candidate['candidate_photo']); ?>" alt="<?php echo htmlspecialchars($candidate['full_name']); ?>" class="ballot-candidate-photo">
+                                                        <?php else: ?>
+                                                            <div class="ballot-candidate-photo placeholder">
+                                                                <?php echo htmlspecialchars(strtoupper(substr($candidate['full_name'], 0, 1))); ?>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        <span class="ballot-candidate-name"><?php echo htmlspecialchars($candidate['full_name']); ?></span>
+                                                    </div>
+                                                </td>
+                                                <td><?php echo htmlspecialchars($candidate['party_name']); ?></td>
+                                                <td>
+                                                    <?php if ($is_selected): ?>
+                                                        <span class="status-badge status-active">Selected</span>
+                                                    <?php else: ?>
+                                                        <span class="status-badge status-warning">Not Selected</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
             <?php else: ?>
                 <?php if (!empty($step_tracker)): ?>
                     <div class="ballot-steps" aria-label="Ballot steps in required order">
