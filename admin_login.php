@@ -18,9 +18,19 @@ function getAdminLandingPageByRole($role) {
 }
 
 if (isset($_SESSION['admin_id'])) {
-    $existing_role = (string)($_SESSION['admin_role'] ?? 'super_admin');
-    header('Location: ' . getAdminLandingPageByRole($existing_role));
-    exit();
+    if (isValidAdminTabNonceRequest()) {
+        $existing_role = (string)($_SESSION['admin_role'] ?? 'super_admin');
+        $nonce = (string)($_SESSION['admin_tab_nonce'] ?? '');
+        if ($nonce === '') {
+            $nonce = issueAdminTabNonce();
+        }
+        $landing = getAdminLandingPageByRole($existing_role);
+        $separator = (strpos($landing, '?') !== false) ? '&' : '?';
+        header('Location: ' . $landing . $separator . getAdminTabNonceParamName() . '=' . urlencode($nonce));
+        exit();
+    }
+
+    clearAdminSessionState();
 }
 
 function clearAdminPreAuthState() {
@@ -44,6 +54,10 @@ $pending_admin_name = '';
 
 if (($_GET['logout'] ?? '') === 'success') {
     $message = 'You have logged out successfully.';
+}
+
+if (($_GET['reauth'] ?? '') === 'required') {
+    $message = 'Session closed for security. Please login again.';
 }
 
 if (($_GET['reset'] ?? '') === 'success') {
@@ -160,13 +174,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['admin_name'] = $_SESSION['admin_preauth_name'] ?? $pending_admin['full_name'];
                         $_SESSION['admin_email'] = $_SESSION['admin_preauth_email'] ?? $pending_admin['email'];
                         $_SESSION['admin_role'] = $_SESSION['admin_preauth_role'] ?? ($pending_admin['admin_role'] ?? 'super_admin');
+                        $nonce = issueAdminTabNonce();
 
                         clearAdminPreAuthState();
                         recordRateLimitEvent('admin_mfa_setup', (string)$admin_id, true);
                         logAuditEvent('admin', $admin_id, 'admin_login_success_mfa_initialized');
 
                         $target_role = (string)($_SESSION['admin_role'] ?? 'super_admin');
-                        header('Location: ' . getAdminLandingPageByRole($target_role));
+                        $landing = getAdminLandingPageByRole($target_role);
+                        $separator = (strpos($landing, '?') !== false) ? '&' : '?';
+                        header('Location: ' . $landing . $separator . getAdminTabNonceParamName() . '=' . urlencode($nonce));
                         exit();
                     }
                 }
@@ -203,13 +220,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['admin_name'] = $_SESSION['admin_preauth_name'] ?? $pending_admin['full_name'];
                     $_SESSION['admin_email'] = $_SESSION['admin_preauth_email'] ?? $pending_admin['email'];
                     $_SESSION['admin_role'] = $_SESSION['admin_preauth_role'] ?? ($pending_admin['admin_role'] ?? 'super_admin');
+                    $nonce = issueAdminTabNonce();
 
                     clearAdminPreAuthState();
                     recordRateLimitEvent('admin_mfa_verify', $mfa_identifier, true);
                     logAuditEvent('admin', $admin_id, 'admin_login_success_mfa_verified');
 
                     $target_role = (string)($_SESSION['admin_role'] ?? 'super_admin');
-                    header('Location: ' . getAdminLandingPageByRole($target_role));
+                    $landing = getAdminLandingPageByRole($target_role);
+                    $separator = (strpos($landing, '?') !== false) ? '&' : '?';
+                    header('Location: ' . $landing . $separator . getAdminTabNonceParamName() . '=' . urlencode($nonce));
                     exit();
                 }
             }

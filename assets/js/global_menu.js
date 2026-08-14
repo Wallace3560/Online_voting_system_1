@@ -3,6 +3,124 @@
  * Purpose: Handles client-side interactions for this feature.
  */
 (function () {
+    var adminNonceParam = 'admin_tab_nonce';
+    var adminNonceStorageKey = 'ovs_admin_tab_nonce';
+    var pathname = (window.location.pathname || '').toLowerCase();
+    var adminProtectedPages = [
+        '/admin_verify_voters.php',
+        '/sub_admin_dashboard.php',
+        '/election_officer_dashboard.php',
+        '/admin_records.php',
+        '/admin_manage_voters.php',
+        '/admin_candidate_change_history.php'
+    ];
+
+    function isAdminProtectedPath(path) {
+        for (var i = 0; i < adminProtectedPages.length; i++) {
+            if (path.endsWith(adminProtectedPages[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function getQueryParam(name) {
+        var params = new URLSearchParams(window.location.search || '');
+        return params.get(name) || '';
+    }
+
+    function addOrReplaceQueryParam(urlString, name, value) {
+        try {
+            var resolved = new URL(urlString, window.location.origin);
+            resolved.searchParams.set(name, value);
+            return resolved.toString();
+        } catch (e) {
+            return urlString;
+        }
+    }
+
+    function normalizeLocalHref(resolvedUrl) {
+        if (!resolvedUrl || resolvedUrl.origin !== window.location.origin) {
+            return resolvedUrl ? resolvedUrl.href : '';
+        }
+        return resolvedUrl.pathname + resolvedUrl.search + resolvedUrl.hash;
+    }
+
+    function ensureAdminTabNonceBindings() {
+        if (!isAdminProtectedPath(pathname)) {
+            return;
+        }
+
+        var requestNonce = getQueryParam(adminNonceParam);
+        if (requestNonce) {
+            try {
+                sessionStorage.setItem(adminNonceStorageKey, requestNonce);
+            } catch (e) {
+                return;
+            }
+
+            try {
+                var cleanUrl = new URL(window.location.href);
+                cleanUrl.searchParams.delete(adminNonceParam);
+                window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+            } catch (e) {
+                // no-op
+            }
+        }
+
+        var storedNonce = '';
+        try {
+            storedNonce = sessionStorage.getItem(adminNonceStorageKey) || '';
+        } catch (e) {
+            storedNonce = '';
+        }
+
+        if (!storedNonce) {
+            return;
+        }
+
+        var anchors = document.querySelectorAll('a[href]');
+        for (var i = 0; i < anchors.length; i++) {
+            var href = anchors[i].getAttribute('href') || '';
+            if (!href || href.indexOf('#') === 0 || href.toLowerCase().indexOf('javascript:') === 0) {
+                continue;
+            }
+
+            var resolved;
+            try {
+                resolved = new URL(href, window.location.origin);
+            } catch (e) {
+                continue;
+            }
+
+            if (resolved.origin !== window.location.origin) {
+                continue;
+            }
+
+            if (!resolved.pathname.toLowerCase().endsWith('.php')) {
+                continue;
+            }
+
+            resolved.searchParams.set(adminNonceParam, storedNonce);
+            anchors[i].setAttribute('href', normalizeLocalHref(resolved));
+        }
+
+        var forms = document.querySelectorAll('form');
+        for (var j = 0; j < forms.length; j++) {
+            var form = forms[j];
+            var hidden = form.querySelector('input[name="' + adminNonceParam + '"]');
+            if (!hidden) {
+                hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = adminNonceParam;
+                form.appendChild(hidden);
+            }
+            hidden.value = storedNonce;
+        }
+    }
+
+    ensureAdminTabNonceBindings();
+
     if (document.getElementById('global-nav-fab')) {
         return;
     }
@@ -72,6 +190,13 @@
     list.className = 'global-nav-list';
 
     var current = (window.location.pathname || '').toLowerCase();
+    var navNonce = '';
+    try {
+        navNonce = sessionStorage.getItem(adminNonceStorageKey) || '';
+    } catch (e) {
+        navNonce = '';
+    }
+
     links.forEach(function (item) {
         if (current.endsWith('/' + item.href.toLowerCase()) || current === '/' + item.href.toLowerCase()) {
             return;
@@ -79,7 +204,11 @@
 
         var anchor = document.createElement('a');
         anchor.className = 'global-nav-link';
-        anchor.href = item.href;
+        if (navNonce && isAdminProtectedPath(pathname)) {
+            anchor.href = addOrReplaceQueryParam(item.href, adminNonceParam, navNonce);
+        } else {
+            anchor.href = item.href;
+        }
         anchor.textContent = item.label;
         list.appendChild(anchor);
     });
@@ -98,6 +227,10 @@
     homeButton.className = 'global-nav-home';
     homeButton.textContent = 'Role Home';
     homeButton.addEventListener('click', function () {
+        if (navNonce && isAdminProtectedPath(pathname)) {
+            window.location.href = addOrReplaceQueryParam(roleHome, adminNonceParam, navNonce);
+            return;
+        }
         window.location.href = roleHome;
     });
 

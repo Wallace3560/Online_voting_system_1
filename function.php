@@ -2504,19 +2504,54 @@ function getAdminById($admin_id) {
     return $result ? mysqli_fetch_assoc($result) : null;
 }
 
+function getAdminTabNonceParamName() {
+    return 'admin_tab_nonce';
+}
+
+function getAdminTabNonceFromRequest() {
+    $key = getAdminTabNonceParamName();
+    $from_post = isset($_POST[$key]) ? sanitize($_POST[$key]) : '';
+    if ($from_post !== '') {
+        return $from_post;
+    }
+    return isset($_GET[$key]) ? sanitize($_GET[$key]) : '';
+}
+
+function isValidAdminTabNonceRequest() {
+    $session_nonce = (string)($_SESSION['admin_tab_nonce'] ?? '');
+    $request_nonce = getAdminTabNonceFromRequest();
+    return ($session_nonce !== '' && $request_nonce !== '' && hash_equals($session_nonce, $request_nonce));
+}
+
+function issueAdminTabNonce() {
+    $nonce = bin2hex(random_bytes(20));
+    $_SESSION['admin_tab_nonce'] = $nonce;
+    return $nonce;
+}
+
+function clearAdminSessionState() {
+    $_SESSION = [];
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_destroy();
+    }
+}
+
 function requireAdminAuth() {
     if (!isset($_SESSION['admin_id'])) {
         header('Location: admin_login.php');
         exit();
     }
 
+    if (!isValidAdminTabNonceRequest()) {
+        clearAdminSessionState();
+        header('Location: admin_login.php?reauth=required');
+        exit();
+    }
+
     $admin_id = (int)($_SESSION['admin_id'] ?? 0);
     $admin = $admin_id > 0 ? getAdminById($admin_id) : null;
     if (!$admin) {
-        $_SESSION = [];
-        if (session_status() === PHP_SESSION_ACTIVE) {
-            session_destroy();
-        }
+        clearAdminSessionState();
         header('Location: admin_login.php');
         exit();
     }
@@ -2528,10 +2563,7 @@ function requireAdminAuth() {
 }
 
 function requireAdminRole($roles) {
-    if (!isset($_SESSION['admin_id'])) {
-        header('Location: admin_login.php');
-        exit();
-    }
+    requireAdminAuth();
 
     $roles = is_array($roles) ? $roles : [$roles];
     $current_role = (string)($_SESSION['admin_role'] ?? '');
