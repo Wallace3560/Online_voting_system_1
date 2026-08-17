@@ -90,8 +90,38 @@ body {
     color: rgba(255, 255, 255, 0.93);
 }
 
+.dashboard-role-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.dashboard-header-actions {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .card-body {
     padding: 22px 26px 28px;
+}
+
+.card-body > h3 {
+    margin-top: 24px;
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    background: linear-gradient(180deg, #f3f7f3 0%, #ecf3ec 100%);
+    border: 1px solid #d9e2da;
 }
 
 h1,
@@ -261,6 +291,7 @@ textarea:focus {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 13px;
+    margin-bottom: 14px;
 }
 
 .stat-card {
@@ -285,6 +316,37 @@ textarea:focus {
     overflow-x: auto;
     border-radius: var(--radius-md);
     border: 1px solid var(--border);
+    background: #fff;
+}
+
+.card-body > form,
+.card-body > .form-row,
+.card-body > .alert,
+.card-body > .table-wrap,
+.card-body > .toolbar-row {
+    margin-bottom: 14px;
+}
+
+.card-body > form {
+    border: 1px solid #d8e1d8;
+    border-radius: 10px;
+    background: #f8fbf8;
+    padding: 12px;
+}
+
+.card-body td form,
+.card-body form[style*='display:inline'] {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+}
+
+.toolbar-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
 }
 
 table {
@@ -425,4 +487,14 @@ dialog#manage-dialog {
 
 dialog#manage-dialog::backdrop {
     background: rgba(0, 0, 0, 0.35);
+}
+
+@media (max-width: 860px) {
+    .card-body > form {
+        padding: 10px;
+    }
+
+    .dashboard-header-actions {
+        width: 100%;
+    }
 }

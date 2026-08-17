@@ -18,8 +18,8 @@
         <div class="card-header">
             <h2>Admin Verification Dashboard</h2>
             <p>Manage voter verification, election status, candidates, and publication of results.</p>
-            <p>Signed in as role: <strong><?php echo htmlspecialchars($admin_role ?? 'super_admin'); ?></strong></p>
-            <div style="margin-top: 10px;">
+            <div class="dashboard-role-chip">Signed in as role: <strong><?php echo htmlspecialchars($admin_role ?? 'super_admin'); ?></strong></div>
+            <div class="dashboard-header-actions">
                 <a href="admin_logout.php" class="btn btn-danger">Admin Logout</a>
             </div>
         </div>
@@ -75,7 +75,7 @@
                 </strong>
             </div>
 
-            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 18px;">
+            <div class="toolbar-row" style="margin-bottom: 18px;">
                 <form method="POST" action="admin_verify_voters.php" style="display:inline;">
                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
                     <button class="btn btn-primary" name="action" value="publish_results" type="submit">Publish Results</button>
@@ -450,7 +450,7 @@
             <h3 style="margin-top: 20px;">Create By-Election</h3>
             <div class="alert alert-info">Use this when a leader leaves office. The by-election will only be open for voters eligible in the affected area.</div>
             <?php if (!empty($can_verify_voters)): ?>
-            <div style="margin-bottom: 12px;">
+            <div class="toolbar-row" style="margin-bottom: 16px;">
                 <a class="btn btn-secondary" href="admin_records.php?type=candidates">Open Candidate Correction Page</a>
                 <a class="btn btn-secondary" href="admin_candidate_change_history.php">Candidate Change History</a>
             </div>
