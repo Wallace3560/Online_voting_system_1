@@ -481,6 +481,72 @@
 				"_sync_to_xampp.ps1"
 			],
 			"isBackground": false
+		},
+		{
+			"label": "verify-comments-in-xampp-copy",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"findstr /S /M /C:\"Module:\" /C:\"Section:\" \"C:\\xampp\\htdocs\\online_voting_system_1\\*.php\" | find /C \":\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-comments-in-xampp-copy",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"_count_comments_xampp.ps1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-comments-in-xampp-copy-v2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"_count_comments_xampp.ps1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-sub-admin-view-fix",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"views\\sub_admin_dashboard.view.html\" \"C:\\xampp\\htdocs\\online_voting_system_1\\views\\sub_admin_dashboard.view.html\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-current-view-to-xampp",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"views\\sub_admin_dashboard.view.html\" \"C:\\xampp\\htdocs\\online_voting_system_1\\views\\sub_admin_dashboard.view.html\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-current-view-sync",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"fc /b \"views\\sub_admin_dashboard.view.html\" \"C:\\xampp\\htdocs\\online_voting_system_1\\views\\sub_admin_dashboard.view.html\" >nul && echo MATCH || echo DIFF"
+			],
+			"isBackground": false
 		}
 	]
 }
