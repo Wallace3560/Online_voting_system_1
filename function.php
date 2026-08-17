@@ -1,8 +1,11 @@
 <?php
 /*
- * Overview: Function
- * Purpose: Handles server-side logic for this feature.
+ * Module: Shared Business and Security Functions
+ * Responsibility: Provide reusable security, authentication, election,
+ * voting, results, and operational helper logic across controllers.
  */
+
+/* Section: Runtime guards and HTTP security policy helpers. */
 function hasDbConnection() {
     global $conn;
     return ($conn instanceof mysqli);
@@ -40,6 +43,7 @@ function generateVerificationToken() {
     return bin2hex(random_bytes(32));
 }
 
+/* Section: Email configuration resolution and SMTP transport primitives. */
 function getMailConfigFileValues() {
     $config_path = __DIR__ . '/includes/mail_config.php';
     if (!is_file($config_path)) {
@@ -82,7 +86,11 @@ function getSystemEmailConfig() {
     ];
 }
 
-function smtpReadResponse($socket) {
+function smtpCommand($socket, $command, $expected_codes) {
+    if ($command !== '') {
+        fwrite($socket, $command . "\r\n");
+    }
+
     $response = '';
     while (!feof($socket)) {
         $line = fgets($socket, 515);
@@ -94,15 +102,7 @@ function smtpReadResponse($socket) {
             break;
         }
     }
-    return $response;
-}
 
-function smtpCommand($socket, $command, $expected_codes) {
-    if ($command !== '') {
-        fwrite($socket, $command . "\r\n");
-    }
-
-    $response = smtpReadResponse($socket);
     if ($response === '' || strlen($response) < 3) {
         return [false, $response];
     }
@@ -3565,22 +3565,6 @@ function getScopedBallot($voter_id) {
     return array_values($ballot);
 }
 
-function voterHasVotedForPosition($voter_id, $position_id) {
-    global $conn;
-    if (!hasDbConnection()) {
-        return false;
-    }
-    $query = "SELECT 1 FROM votes WHERE voter_id = ? AND position_id = ? LIMIT 1";
-    $stmt = mysqli_prepare($conn, $query);
-    if (!$stmt) {
-        return false;
-    }
-    mysqli_stmt_bind_param($stmt, "ii", $voter_id, $position_id);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-    return $result && mysqli_num_rows($result) > 0;
-}
-
 function voterHasFinalizedVote($voter_id) {
     global $conn;
     if (!hasDbConnection()) {
@@ -3763,78 +3747,6 @@ function submitFinalBallot($voter_id, $votes_by_position) {
     }
 }
 
-function castVote($voter_id, $candidate_id) {
-    global $conn;
-
-    if (!hasDbConnection()) {
-        return ['ok' => false, 'message' => 'Database is unavailable. Please try again later.'];
-    }
-
-    if (!isElectionOpen()) {
-        return ['ok' => false, 'message' => 'Election is currently closed.'];
-    }
-
-    if (!canLogin($voter_id)) {
-        return ['ok' => false, 'message' => 'Only verified voters can vote.'];
-    }
-
-    $voter = getVoterById($voter_id);
-    if (!$voter) {
-        return ['ok' => false, 'message' => 'Voter account not found.'];
-    }
-
-    if (voterHasFinalizedVote($voter_id)) {
-        return ['ok' => false, 'message' => 'Your vote has already been finalized. You cannot vote again.'];
-    }
-
-    $candidate_query = "SELECT c.*, p.scope
-                        FROM candidates c
-                        JOIN positions p ON c.position_id = p.position_id
-                        WHERE c.candidate_id = ? AND c.status = 'active'";
-    $stmt = mysqli_prepare($conn, $candidate_query);
-    if (!$stmt) {
-        return ['ok' => false, 'message' => 'Unable to process request right now.'];
-    }
-    mysqli_stmt_bind_param($stmt, "i", $candidate_id);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-    $candidate = $result ? mysqli_fetch_assoc($result) : null;
-
-    if (!$candidate) {
-        return ['ok' => false, 'message' => 'Candidate not found.'];
-    }
-
-    $scope = $candidate['scope'];
-    if (($scope === 'county' && (int)$candidate['county_id'] !== (int)$voter['county_id'])
-        || ($scope === 'constituency' && (int)$candidate['constituency_id'] !== (int)$voter['constituency_id'])
-        || ($scope === 'ward' && (int)$candidate['ward_id'] !== (int)$voter['ward_id'])) {
-        return ['ok' => false, 'message' => 'Selected candidate is outside your voting area.'];
-    }
-
-    $position_id = (int)$candidate['position_id'];
-    if (voterHasVotedForPosition($voter_id, $position_id)) {
-        return ['ok' => false, 'message' => 'You already voted for this position.'];
-    }
-
-    $insert_query = "INSERT INTO votes (voter_id, position_id, candidate_id) VALUES (?, ?, ?)";
-    $insert_stmt = mysqli_prepare($conn, $insert_query);
-    if (!$insert_stmt) {
-        return ['ok' => false, 'message' => 'Unable to save vote right now.'];
-    }
-    mysqli_stmt_bind_param($insert_stmt, "iii", $voter_id, $position_id, $candidate_id);
-
-    if (!mysqli_stmt_execute($insert_stmt)) {
-        return ['ok' => false, 'message' => 'Failed to save your vote. Please try again.'];
-    }
-
-    logAuditEvent('voter', $voter_id, 'vote_cast', [
-        'position_id' => $position_id,
-        'candidate_id' => (int)$candidate_id
-    ]);
-
-    return ['ok' => true, 'message' => 'Vote submitted successfully.'];
-}
-
 function getBallotProgress($voter_id) {
     $ballot = getScopedBallot($voter_id);
     $total = count($ballot);
@@ -3992,21 +3904,6 @@ function saveOptionalCandidatePhotoUpload($file) {
     return saveCandidatePhotoUpload($file);
 }
 
-function getMultiUploadFileAtIndex($files_field, $index) {
-    if (!is_array($files_field) || !isset($files_field['error']) || !is_array($files_field['error'])) {
-        return null;
-    }
-
-    $safe_index = (int)$index;
-    return [
-        'name' => (string)($files_field['name'][$safe_index] ?? ''),
-        'type' => (string)($files_field['type'][$safe_index] ?? ''),
-        'tmp_name' => (string)($files_field['tmp_name'][$safe_index] ?? ''),
-        'error' => (int)($files_field['error'][$safe_index] ?? UPLOAD_ERR_NO_FILE),
-        'size' => (int)($files_field['size'][$safe_index] ?? 0)
-    ];
-}
-
 function prepareByElectionCandidatesFromRequest($post, $files) {
     $full_names = isset($post['by_candidate_full_name']) && is_array($post['by_candidate_full_name'])
         ? $post['by_candidate_full_name']
@@ -4025,7 +3922,17 @@ function prepareByElectionCandidatesFromRequest($post, $files) {
     for ($i = 0; $i < $row_count; $i++) {
         $name_value = sanitize($full_names[$i] ?? '');
         $party_value = sanitize($party_names[$i] ?? '');
-        $photo_file = getMultiUploadFileAtIndex($photo_field, $i);
+        $photo_file = null;
+        if (is_array($photo_field) && isset($photo_field['error']) && is_array($photo_field['error'])) {
+            $safe_index = (int)$i;
+            $photo_file = [
+                'name' => (string)($photo_field['name'][$safe_index] ?? ''),
+                'type' => (string)($photo_field['type'][$safe_index] ?? ''),
+                'tmp_name' => (string)($photo_field['tmp_name'][$safe_index] ?? ''),
+                'error' => (int)($photo_field['error'][$safe_index] ?? UPLOAD_ERR_NO_FILE),
+                'size' => (int)($photo_field['size'][$safe_index] ?? 0)
+            ];
+        }
         $photo_missing = !$photo_file || (int)($photo_file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE;
 
         // Skip fully empty candidate rows.
@@ -4134,22 +4041,6 @@ function getAllWards() {
     }
     $result = mysqli_query($conn, "SELECT ward_id, constituency_id, ward_name FROM wards ORDER BY ward_name ASC");
     return $result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
-}
-
-function getByElectionById($by_election_id) {
-    global $conn;
-    if (!hasDbConnection()) {
-        return null;
-    }
-    $query = "SELECT * FROM by_elections WHERE by_election_id = ? LIMIT 1";
-    $stmt = mysqli_prepare($conn, $query);
-    if (!$stmt) {
-        return null;
-    }
-    mysqli_stmt_bind_param($stmt, "i", $by_election_id);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-    return $result ? mysqli_fetch_assoc($result) : null;
 }
 
 function createByElection($position_id, $election_title, $affected_candidate_name, $reason, $county_id, $constituency_id, $ward_id, $open_at, $close_at, $admin_id) {

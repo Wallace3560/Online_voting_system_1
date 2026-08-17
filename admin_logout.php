@@ -1,16 +1,19 @@
 <?php
 /*
- * Overview: Admin Logout
- * Purpose: Handles server-side logic for this feature.
+ * Module: Admin Logout Controller
+ * Responsibility: Audit logout, clear privileged session state,
+ * and redirect to admin login confirmation.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
 
+/* Section: Audit logout event for active admin identity. */
 $admin_id = $_SESSION['admin_id'] ?? null;
 if ($admin_id !== null) {
     logAuditEvent('admin', (int)$admin_id, 'admin_logout');
 }
 
+/* Section: Destroy admin session attributes and rotate session id. */
 unset(
     $_SESSION['admin_id'],
     $_SESSION['admin_name'],
@@ -25,5 +28,6 @@ unset(
 );
 session_regenerate_id(true);
 
+/* Section: Redirect. */
 header('Location: admin_login.php?logout=success');
 exit();

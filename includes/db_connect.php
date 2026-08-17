@@ -1,8 +1,11 @@
 <?php
 /*
- * Overview: Db Connect
- * Purpose: Handles server-side logic for this feature.
+ * Module: Database and Session Bootstrap
+ * Responsibility: Initialize secure session settings and establish
+ * resilient MySQL connection fallback for runtime controllers.
  */
+
+/* Section: Session hardening and startup. */
 if (session_status() === PHP_SESSION_NONE) {
     $is_https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443);
@@ -22,6 +25,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+/* Section: Resolve connection candidates from env and defaults. */
 $db_host = getenv('DB_HOST') ?: '';
 $db_user = getenv('DB_USER') ?: '';
 $db_pass = getenv('DB_PASS');
@@ -57,6 +61,7 @@ $db_names_to_try = array_values(array_unique(array_filter([
     'online_voting_system'
 ])));
 
+/* Section: Attempt DB connection with create-if-missing fallback. */
 foreach ($hosts_to_try as $host) {
     foreach ($users_to_try as $user) {
         foreach ($passes_to_try as $pass) {

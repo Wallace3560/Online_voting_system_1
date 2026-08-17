@@ -1,7 +1,8 @@
 <?php
 /*
- * Overview: Register
- * Purpose: Handles server-side logic for this feature.
+ * Module: Voter Registration Controller
+ * Responsibility: Validate registration input, persist voter profile,
+ * and issue email verification for onboarding.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
@@ -14,6 +15,7 @@ if (!$conn) {
     $error = 'Database connection failed. Check DB settings in includes/db_connect.php or environment variables.';
 }
 
+/* Section: Registration submit pipeline and anti-abuse controls. */
 if ($conn && $_SERVER['REQUEST_METHOD'] == 'POST') {
     if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request token. Please refresh and try again.';
@@ -141,6 +143,7 @@ if ($conn && $_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
+/* Section: Render view. */
 $csrf_token = getCsrfToken();
 
 require_once 'views/register.view.html';

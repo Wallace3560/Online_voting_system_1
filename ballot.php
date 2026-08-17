@@ -1,11 +1,13 @@
 <?php
 /*
- * Overview: Ballot
- * Purpose: Handles server-side logic for this feature.
+ * Module: Ballot Controller
+ * Responsibility: Validate voter access, process ballot submissions,
+ * compute ballot progress state, and render the voting view.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
 
+/* Section: Voter authentication and eligibility gate. */
 if (!isset($_SESSION['voter_id'])) {
     header('Location: login.php');
     exit();
@@ -24,6 +26,7 @@ $message = '';
 $error = '';
 $is_finalized = voterHasFinalizedVote($voter_id);
 
+/* Section: Main election ballot submission handler. */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_ballot') {
     if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request token. Please refresh and try again.';
@@ -41,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+/* Section: By-election submission handler. */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_by_election_vote') {
     if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request token. Please refresh and try again.';
@@ -56,6 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+/* Section: Build step tracker and progress metadata for the UI. */
 $ballot = sortBallotByRequiredElectionOrder(getScopedBallot($voter_id));
 $by_elections = getActiveByElectionsForVoter($voter_id);
 $step_tracker = [];
@@ -103,4 +108,5 @@ $election_open = isElectionOpen();
 $latest_location_change = getLatestVoterLocationChangeRequest($voter_id);
 $csrf_token = getCsrfToken();
 
+/* Section: Render view. */
 require_once 'views/ballot.view.html';

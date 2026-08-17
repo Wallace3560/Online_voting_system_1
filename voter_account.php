@@ -1,11 +1,13 @@
 <?php
 /*
- * Overview: Voter Account
- * Purpose: Handles server-side logic for this feature.
+ * Module: Voter Account and Profile Change Controller
+ * Responsibility: Resolve voter context, accept profile update requests,
+ * and surface request history/status to the voter.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
 
+/* Section: Resolve voter context (session flow or correction-token flow). */
 $correction_token = sanitize($_GET['correction_token'] ?? ($_POST['correction_token'] ?? ''));
 $can_use_correction_token = $correction_token !== '';
 $is_token_flow = false;
@@ -39,6 +41,7 @@ if (!$voter) {
 $message = '';
 $error = '';
 
+/* Section: Profile update request submission pipeline. */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'request_profile_update') {
     if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request token. Please refresh and try again.';
@@ -137,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+/* Section: Load view data and render page. */
 $voter = getVoterById($voter_id);
 $counties = getCounties();
 $current_constituencies = getConstituenciesByCounty((int)($voter['county_id'] ?? 0));

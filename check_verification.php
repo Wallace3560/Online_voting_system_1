@@ -1,7 +1,8 @@
 <?php
 /*
- * Overview: Check Verification
- * Purpose: Handles server-side logic for this feature.
+ * Module: Verification Status Lookup Controller
+ * Responsibility: Allow users to query current account verification state
+ * using national ID or email.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
@@ -13,6 +14,7 @@ if (!$conn) {
     $error = 'Database connection failed. Check DB settings in includes/db_connect.php or environment variables.';
 }
 
+/* Section: Status lookup submit pipeline. */
 if ($conn && $_SERVER['REQUEST_METHOD'] == 'POST') {
     if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request token. Please refresh and try again.';
@@ -43,6 +45,7 @@ if ($conn && $_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
+/* Section: Render view. */
 $csrf_token = getCsrfToken();
 
 require_once 'views/check_verification.view.html';

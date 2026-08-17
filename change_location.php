@@ -1,11 +1,13 @@
 <?php
 /*
- * Overview: Change Location
- * Purpose: Handles voter relocation requests for admin approval.
+ * Module: Voter Location Change Controller
+ * Responsibility: Validate voter relocation requests and submit them
+ * for admin review and approval.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
 
+/* Section: Voter authentication and access gate. */
 if (!isset($_SESSION['voter_id'])) {
     header('Location: login.php');
     exit();
@@ -23,6 +25,7 @@ $message = '';
 $error = '';
 $location_change_eligibility = getVoterLocationChangeEligibility();
 
+/* Section: Location change request submission flow. */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['action'] ?? '') === 'request_location_change') {
     if (empty($location_change_eligibility['allowed'])) {
         $error = (string)($location_change_eligibility['message'] ?? 'Location change is not allowed at this time.');
@@ -48,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['action'] ?? '') ==
     }
 }
 
+/* Section: Refresh page data and render view. */
 $voter = getVoterById($voter_id);
 $counties = getCounties();
 $current_constituencies = getConstituenciesByCounty((int)($voter['county_id'] ?? 0));

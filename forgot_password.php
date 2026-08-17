@@ -1,7 +1,8 @@
 <?php
 /*
- * Overview: Forgot Password
- * Purpose: Handles server-side logic for this feature.
+ * Module: Voter Forgot Password Controller
+ * Responsibility: Accept reset requests, apply abuse controls,
+ * and issue secure password reset tokens via email.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
@@ -14,6 +15,7 @@ if (!$conn) {
     $error = 'Database connection failed. Check DB settings in includes/db_connect.php or environment variables.';
 }
 
+/* Section: Reset request intake and token issuance. */
 if ($conn && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request token. Please refresh and try again.';
@@ -53,6 +55,7 @@ if ($conn && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+/* Section: Render view. */
 $csrf_token = getCsrfToken();
 
 require_once 'views/forgot_password.view.html';

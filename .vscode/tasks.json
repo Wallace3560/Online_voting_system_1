@@ -1,0 +1,486 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "sync-updated-files-to-xampp",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$src=(Get-Location).Path; $dst='C:\\xampp\\htdocs\\online_voting_system_1'; Copy-Item -Path (Join-Path $src 'results.php'),(Join-Path $src 'ballot.php'),(Join-Path $src 'admin_verify_voters.php'),(Join-Path $src 'function.php'),(Join-Path $src 'SYSTEM_CODE_DOCUMENTATION.md') -Destination $dst -Force; Write-Output 'SYNC_OK'"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-updated-files-to-xampp-v2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$dst=\"C:\\xampp\\htdocs\\online_voting_system_1\"; Copy-Item -Path \"results.php\",\"ballot.php\",\"admin_verify_voters.php\",\"function.php\",\"SYSTEM_CODE_DOCUMENTATION.md\" -Destination $dst -Force; Write-Output \"SYNC_OK\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-updated-files-to-xampp-cmd",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"results.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\results.php\" & copy /Y \"ballot.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\ballot.php\" & copy /Y \"admin_verify_voters.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_verify_voters.php\" & copy /Y \"function.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\function.php\" & copy /Y \"SYSTEM_CODE_DOCUMENTATION.md\" \"C:\\xampp\\htdocs\\online_voting_system_1\\SYSTEM_CODE_DOCUMENTATION.md\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-sync-binary-compare",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"for %F in (results.php ballot.php admin_verify_voters.php function.php SYSTEM_CODE_DOCUMENTATION.md) do @fc /b \"%F\" \"C:\\xampp\\htdocs\\online_voting_system_1\\%F\" >nul && echo %F MATCH || echo %F DIFF"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-phase3-doc-comments-to-xampp",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"admin_manage_voters.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_manage_voters.php\" & copy /Y \"admin_records.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_records.php\" & copy /Y \"admin_candidate_change_history.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_candidate_change_history.php\" & copy /Y \"login.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\login.php\" & copy /Y \"register.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\register.php\" & copy /Y \"forgot_password.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\forgot_password.php\" & copy /Y \"reset_password.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\reset_password.php\" & copy /Y \"verify_email.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\verify_email.php\" & copy /Y \"resend_verification.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\resend_verification.php\" & copy /Y \"check_verification.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\check_verification.php\" & copy /Y \"admin_login.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_login.php\" & copy /Y \"admin_forgot_password.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_forgot_password.php\" & copy /Y \"admin_reset_password.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_reset_password.php\" & copy /Y \"admin_logout.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_logout.php\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-phase3-sync-matches",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"for %F in (admin_manage_voters.php admin_records.php admin_candidate_change_history.php login.php register.php forgot_password.php reset_password.php verify_email.php resend_verification.php check_verification.php admin_login.php admin_forgot_password.php admin_reset_password.php admin_logout.php) do @fc /b \"%F\" \"C:\\xampp\\htdocs\\online_voting_system_1\\%F\" >nul && echo %F MATCH || echo %F DIFF"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-phase4-doc-comments-to-xampp",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"change_location.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\change_location.php\" & copy /Y \"voter_account.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\voter_account.php\" & copy /Y \"voter_logout.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\voter_logout.php\" & copy /Y \"sub_admin_dashboard.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\sub_admin_dashboard.php\" & copy /Y \"election_officer_dashboard.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\election_officer_dashboard.php\" & copy /Y \"api\\get_constituencies.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\api\\get_constituencies.php\" & copy /Y \"api\\get_wards.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\api\\get_wards.php\" & copy /Y \"includes\\db_connect.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\includes\\db_connect.php\" & copy /Y \"includes\\functions.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\includes\\functions.php\" & copy /Y \"includes\\mail_config.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\includes\\mail_config.php\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-phase4-sync-matches",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"for %F in (change_location.php voter_account.php voter_logout.php sub_admin_dashboard.php election_officer_dashboard.php api\\get_constituencies.php api\\get_wards.php includes\\db_connect.php includes\\functions.php includes\\mail_config.php) do @fc /b \"%F\" \"C:\\xampp\\htdocs\\online_voting_system_1\\%F\" >nul && echo %F MATCH || echo %F DIFF"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "remove-unused-doc-script-cmd",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"if exist \"generate_system_docs.ps1\" (del /f /q \"generate_system_docs.ps1\" & echo REMOVED_LOCAL_SCRIPT) else (echo LOCAL_SCRIPT_NOT_FOUND)"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-unused-cleanup-to-xampp",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"admin_candidate_change_history.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_candidate_change_history.php\" & copy /Y \"sub_admin_dashboard.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\sub_admin_dashboard.php\" & copy /Y \"election_officer_dashboard.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\election_officer_dashboard.php\" & if exist \"C:\\xampp\\htdocs\\online_voting_system_1\\generate_system_docs.ps1\" (del /f /q \"C:\\xampp\\htdocs\\online_voting_system_1\\generate_system_docs.ps1\" & echo REMOVED_XAMPP_SCRIPT) else (echo XAMPP_SCRIPT_NOT_FOUND) & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-unused-cleanup-sync",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"for %F in (admin_candidate_change_history.php sub_admin_dashboard.php election_officer_dashboard.php) do @fc /b \"%F\" \"C:\\xampp\\htdocs\\online_voting_system_1\\%F\" >nul && echo %F MATCH || echo %F DIFF"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-strict-cleanup-batch",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"admin_candidate_change_history.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_candidate_change_history.php\" & copy /Y \"sub_admin_dashboard.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\sub_admin_dashboard.php\" & copy /Y \"election_officer_dashboard.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\election_officer_dashboard.php\" & copy /Y \"admin_records.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_records.php\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-strict-cleanup-batch",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"for %F in (admin_candidate_change_history.php sub_admin_dashboard.php election_officer_dashboard.php admin_records.php) do @fc /b \"%F\" \"C:\\xampp\\htdocs\\online_voting_system_1\\%F\" >nul && echo %F MATCH || echo %F DIFF"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-admin-records-cleanup",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"admin_records.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_records.php\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-admin-records-cleanup-sync",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"fc /b \"admin_records.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_records.php\" >nul && echo admin_records.php MATCH || echo admin_records.php DIFF"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-updated-files-to-xampp-cmd",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"admin_verify_voters.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_verify_voters.php\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-sync-binary-compare",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"for %F in (results.php ballot.php admin_verify_voters.php function.php SYSTEM_CODE_DOCUMENTATION.md) do @fc /b \"%F\" \"C:\\xampp\\htdocs\\online_voting_system_1\\%F\" >nul && echo %F MATCH || echo %F DIFF"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-updated-files-to-xampp-cmd",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"admin_verify_voters.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_verify_voters.php\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-admin-manage-cleanup",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"admin_manage_voters.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_manage_voters.php\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-admin-manage-cleanup-sync",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"fc /b \"admin_manage_voters.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_manage_voters.php\" >nul && echo admin_manage_voters.php MATCH || echo admin_manage_voters.php DIFF"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-strict-cleanup-batch",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"admin_candidate_change_history.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_candidate_change_history.php\" & copy /Y \"sub_admin_dashboard.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\sub_admin_dashboard.php\" & copy /Y \"election_officer_dashboard.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\election_officer_dashboard.php\" & copy /Y \"admin_records.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_records.php\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-unused-cleanup-sync",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"fc /b \"admin_candidate_change_history.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_candidate_change_history.php\" >nul && echo admin_candidate_change_history.php MATCH || echo admin_candidate_change_history.php DIFF"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-updated-files-to-xampp-cmd",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"admin_verify_voters.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\admin_verify_voters.php\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-sync-binary-compare",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"for %F in (results.php ballot.php admin_verify_voters.php function.php SYSTEM_CODE_DOCUMENTATION.md) do @fc /b \"%F\" \"C:\\xampp\\htdocs\\online_voting_system_1\\%F\" >nul && echo %F MATCH || echo %F DIFF"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-function-cleanup",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"function.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\function.php\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-function-cleanup-sync",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"fc /b \"function.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\function.php\" >nul && echo function.php MATCH || echo function.php DIFF"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-function-cleanup",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"function.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\function.php\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-function-cleanup-sync",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"fc /b \"function.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\function.php\" >nul && echo function.php MATCH || echo function.php DIFF"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-function-cleanup",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"function.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\function.php\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-function-cleanup-sync",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"fc /b \"function.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\function.php\" >nul && echo function.php MATCH || echo function.php DIFF"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-function-cleanup",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"copy /Y \"function.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\function.php\" & echo SYNC_OK"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-function-cleanup-sync",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"fc /b \"function.php\" \"C:\\xampp\\htdocs\\online_voting_system_1\\function.php\" >nul && echo function.php MATCH || echo function.php DIFF"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "php-lint-all-files",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"where php >nul 2>nul && (for /r %F in (*.php) do @php -l \"%F\" >nul || echo LINT_FAIL) || echo PHP_NOT_FOUND"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "php-lint-all-files-xampp",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"if exist \"C:\\xampp\\php\\php.exe\" (for /r %F in (*.php) do @\"C:\\xampp\\php\\php.exe\" -l \"%F\" >nul || echo LINT_FAIL \"%F\") else echo XAMPP_PHP_NOT_FOUND"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "php-lint-single-diagnostic",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"\"C:\\xampp\\php\\php.exe\" -l \"function.php\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "php-lint-all-files-xampp-fixed",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"for /r %F in (*.php) do \"C:\\xampp\\php\\php.exe\" -l \"%F\" >nul || echo LINT_FAIL \"%F\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "php-lint-exitcode-diagnostic",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"\"C:\\xampp\\php\\php.exe\" -l \"function.php\" & echo EXITCODE:%ERRORLEVEL%"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "php-lint-all-files-xampp-shortpath",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"for /r %F in (*.php) do \"C:\\xampp\\php\\php.exe\" -l %~sF >nul || echo LINT_FAIL \"%F\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "php-lint-xampp-runtime-copy",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"for /r \"C:\\xampp\\htdocs\\online_voting_system_1\" %F in (*.php) do \"C:\\xampp\\php\\php.exe\" -l %~sF >nul || echo RUNTIME_LINT_FAIL \"%F\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-missing-php-includes",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$root=(Get-Location).Path; $files=Get-ChildItem -Recurse -File -Filter *.php; $missing=@(); foreach($f in $files){ $content=Get-Content -Raw -LiteralPath $f.FullName; $matches=[regex]::Matches($content,'(?m)(require|include)(_once)?\\s*\\(?\\s*[\\\"\\'']([^\\\"\\'']+)[\\\"\\'']\\s*\\)?\\s*;'); foreach($m in $matches){ $p=$m.Groups[3].Value; if($p -match '^https?://'){continue}; if($p -like '*$*'){continue}; $resolved=Join-Path $f.DirectoryName $p; if(-not (Test-Path -LiteralPath $resolved)){ $missing += [pscustomobject]@{ File=$f.FullName; Ref=$p; Resolved=$resolved } } } }; if($missing.Count -eq 0){ 'INCLUDE_CHECK_OK' } else { $missing | ForEach-Object { \"MISSING_INCLUDE|$($_.File)|$($_.Ref)|$($_.Resolved)\" } }"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "run-integrity-check",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"\"C:\\xampp\\php\\php.exe\" \"_integrity_check.php\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "runtime-smoke-http-check",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$base='http://localhost/online_voting_system_1'; $pages=@('/index.html','/login.php','/register.php','/forgot_password.php','/check_verification.php','/results.php','/ballot.php','/voter_account.php','/change_location.php','/admin_login.php','/admin_verify_voters.php','/admin_manage_voters.php','/admin_records.php','/admin_candidate_change_history.php','/api/get_constituencies.php?county_id=1','/api/get_wards.php?constituency_id=1'); foreach($p in $pages){ try { $r=Invoke-WebRequest -Uri ($base+$p) -MaximumRedirection 5 -UseBasicParsing -TimeoutSec 15; $code=[int]$r.StatusCode; $len=($r.Content|Out-String).Length; Write-Output (\"SMOKE_OK|{0}|{1}|{2}\" -f $p,$code,$len) } catch { $resp=$_.Exception.Response; if($resp){ $code=[int]$resp.StatusCode; Write-Output (\"SMOKE_HTTP_FAIL|{0}|{1}\" -f $p,$code) } else { Write-Output (\"SMOKE_FAIL|{0}|{1}\" -f $p,$_.Exception.Message) } } }"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "runtime-smoke-http-check-v2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"_runtime_smoke.ps1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "runtime-assert-check",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"_runtime_assert.ps1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "stateful-scenario-test",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"\"C:\\xampp\\php\\php.exe\" \"_stateful_scenario_test.php\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sync-desktop-to-xampp-full-safe",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"_sync_to_xampp.ps1"
+			],
+			"isBackground": false
+		}
+	]
+}

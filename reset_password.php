@@ -1,7 +1,8 @@
 <?php
 /*
- * Overview: Reset Password
- * Purpose: Handles server-side logic for this feature.
+ * Module: Voter Reset Password Controller
+ * Responsibility: Validate reset token, enforce password policy,
+ * and persist a new credential for the voter account.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
@@ -21,6 +22,7 @@ if ($conn && $token !== '') {
     $token_valid = $voter !== null;
 }
 
+/* Section: Password reset submission flow. */
 if ($conn && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request token. Please refresh and try again.';
@@ -54,4 +56,5 @@ if ($conn && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+/* Section: Render view. */
 require_once 'views/reset_password.view.html';

@@ -1,7 +1,7 @@
 <?php
 /*
- * Overview: Verify Email
- * Purpose: Handles server-side logic for this feature.
+ * Module: Email Verification Controller
+ * Responsibility: Validate verification tokens and activate voter email status.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
@@ -10,6 +10,7 @@ $message = '';
 $error = '';
 $token = $_GET['token'] ?? '';
 
+/* Section: Token presence and verification outcome handling. */
 if (!$token) {
     header("Location: login.php");
     exit();
@@ -32,4 +33,5 @@ if ($voter) {
     $error = "Invalid verification token!";
 }
 
+/* Section: Render view. */
 require_once 'views/verify_email.view.html';

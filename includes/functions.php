@@ -1,15 +1,20 @@
 <?php
 /*
- * Overview: Functions
- * Purpose: Handles server-side logic for this feature.
+ * Module: Shared Include Wrappers and Lightweight Helpers
+ * Responsibility: Load core function library, apply security headers,
+ * and provide minimal compatibility helpers when needed.
  */
+
+/* Section: Load runtime dependencies. */
 require_once __DIR__ . '/db_connect.php';
 require_once __DIR__ . '/../function.php';
 
+/* Section: Apply global HTTP security policy when available. */
 if (function_exists('sendSecurityHeaders')) {
     sendSecurityHeaders();
 }
 
+/* Section: Compatibility helper fallbacks. */
 if (!function_exists('sanitize')) {
     function sanitize($value) {
         return trim((string)$value);

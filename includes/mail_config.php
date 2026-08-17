@@ -1,7 +1,8 @@
 <?php
 /*
- * Overview: Mail Config
- * Purpose: Handles server-side logic for this feature.
+ * Module: Mail Configuration
+ * Responsibility: Provide environment-overridable mail defaults
+ * consumed by the system email transport helpers.
  */
 return [
     'APP_BASE_URL' => '',

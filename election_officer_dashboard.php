@@ -1,17 +1,20 @@
 <?php
 /*
- * Overview: Election Officer Dashboard
- * Purpose: Handles server-side logic for this feature.
+ * Module: Election Officer Dashboard Controller
+ * Responsibility: Enforce election-officer access, process supported
+ * verification/candidate/manual-vote actions, and render operational data.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
 
+/* Section: Access control and baseline state. */
 requireAdminRole(['election_officer']);
 
 $admin_role = (string)($_SESSION['admin_role'] ?? 'election_officer');
 $message = '';
 $error = '';
 
+/* Section: Action dispatcher for election-officer operations. */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 	if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
 		$error = 'Invalid request token. Please refresh and try again.';
@@ -112,6 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 	}
 }
 
+/* Section: Read-model hydration and render. */
 $stats = getVerificationStats();
 $pending_voters = getPendingVerifications();
 $positions = getAllPositions();

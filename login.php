@@ -1,7 +1,8 @@
 <?php
 /*
- * Overview: Login
- * Purpose: Handles server-side logic for this feature.
+ * Module: Voter Login Controller
+ * Responsibility: Validate credentials, enforce verification and rate limits,
+ * initialize voter session state, and route to ballot access.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
@@ -9,6 +10,7 @@ require_once 'includes/functions.php';
 $error = '';
 $message = '';
 
+/* Section: One-time status messages from prior flows. */
 if (($_GET['reset'] ?? '') === 'success') {
     $message = 'Password reset successful. Please login with your new password.';
 }
@@ -21,6 +23,7 @@ if (!$conn) {
     $error = 'Database connection failed. Check DB settings in includes/db_connect.php or environment variables.';
 }
 
+/* Section: Login submit pipeline (CSRF, throttling, credential verification). */
 if ($conn && $_SERVER['REQUEST_METHOD'] == 'POST') {
     if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request token. Please refresh and try again.';
@@ -104,6 +107,7 @@ if ($conn && $_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
+/* Section: Render view. */
 $csrf_token = getCsrfToken();
 
 require_once 'views/login.view.html';

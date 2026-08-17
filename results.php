@@ -1,11 +1,13 @@
 <?php
 /*
- * Overview: Results
- * Purpose: Handles server-side logic for this feature.
+ * Module: Results Controller
+ * Responsibility: Build location-scoped election results and turnout summaries,
+ * then pass the computed dataset to the results view.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
 
+/* Section: Resolve location filters and normalize selected hierarchy. */
 $results_published = areResultsPublished();
 $admin_view = isset($_SESSION['admin_id']);
 $voter_view = isset($_SESSION['voter_id']);
@@ -98,6 +100,7 @@ if (!empty($selected_area_filters)) {
 	$selected_area_label = $selected_location_path;
 }
 
+/* Section: Enforce visibility policy and hydrate results payload. */
 if ($voter_view) {
 	$voter_can_view_results = true;
 }
@@ -122,4 +125,5 @@ if (!empty($_SESSION['results_flash_message'])) {
 	unset($_SESSION['results_flash_message']);
 }
 
+/* Section: Render view. */
 require_once 'views/results.view.html';

@@ -1,11 +1,13 @@
 <?php
 /*
- * Overview: Admin Login
- * Purpose: Handles server-side logic for this feature.
+ * Module: Admin Login and MFA Controller
+ * Responsibility: Authenticate admins, orchestrate MFA setup/verification,
+ * and establish secure admin session state.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
 
+/* Section: Role-based post-login routing helper. */
 function getAdminLandingPageByRole($role) {
     $role = (string)$role;
     if ($role === 'sub_admin') {
@@ -44,6 +46,7 @@ function clearAdminPreAuthState() {
     );
 }
 
+/* Section: Login state bootstrap and pre-auth session recovery. */
 $error = '';
 $message = '';
 $identifier = getClientIpAddress();
@@ -98,6 +101,7 @@ if ($pending_admin) {
     }
 }
 
+/* Section: POST action router for password, MFA setup, and MFA verification. */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = sanitize($_POST['action'] ?? 'admin_login_submit');
 
@@ -269,5 +273,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+/* Section: Render view. */
 $csrf_token = getCsrfToken();
 require_once 'views/admin_login.view.html';

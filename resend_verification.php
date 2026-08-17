@@ -1,7 +1,8 @@
 <?php
 /*
- * Overview: Resend Verification
- * Purpose: Handles server-side logic for this feature.
+ * Module: Resend Verification Controller
+ * Responsibility: Reissue email verification tokens for pending voter accounts
+ * while applying CSRF and rate-limit controls.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
@@ -14,6 +15,7 @@ if (!$conn) {
     $error = 'Database connection failed. Check DB settings in includes/db_connect.php or environment variables.';
 }
 
+/* Section: Verification resend request flow. */
 if ($conn && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request token. Please refresh and try again.';
@@ -57,6 +59,7 @@ if ($conn && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+/* Section: Render view. */
 $csrf_token = getCsrfToken();
 
 require_once 'views/resend_verification.view.html';

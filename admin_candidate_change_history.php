@@ -1,11 +1,13 @@
 <?php
 /*
- * Overview: Admin Candidate Change History
- * Purpose: Displays auditable candidate change history with filters and CSV export.
+ * Module: Admin Candidate Change History Controller
+ * Responsibility: Provide filtered audit history for candidate changes
+ * and optional CSV export for compliance reporting.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
 
+/* Section: Access control for privileged audit viewers. */
 requireAdminAuth();
 requireAdminRole(['super_admin', 'sub_admin']);
 
@@ -28,7 +30,6 @@ $filters = [
 ];
 
 $candidate_filter_options = [];
-$admin_filter_options = [];
 $change_type_options = getCandidateChangeTypes();
 
 $candidate_rows = getCandidateChangeHistory([], 0);
@@ -52,6 +53,7 @@ if (!empty($candidate_rows)) {
 $admins_result = mysqli_query($conn, "SELECT admin_id, full_name, admin_role FROM admins WHERE status = 'active' ORDER BY full_name ASC");
 $admin_filter_options = $admins_result ? mysqli_fetch_all($admins_result, MYSQLI_ASSOC) : [];
 
+/* Section: Conditional CSV export stream. */
 if ($export === 'csv') {
     $rows = getCandidateChangeHistory($filters, 0);
     $filename = 'candidate_change_history_' . date('Ymd_His') . '.csv';
@@ -82,6 +84,7 @@ if ($export === 'csv') {
     exit();
 }
 
+/* Section: Default page dataset and render. */
 $history_rows = getCandidateChangeHistory($filters, 500);
 $csrf_token = getCsrfToken();
 

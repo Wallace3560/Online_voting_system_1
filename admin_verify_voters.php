@@ -1,11 +1,13 @@
 <?php
 /*
- * Overview: Admin Verify Voters
- * Purpose: Handles server-side logic for this feature.
+ * Module: Admin Verification and Election Operations Controller
+ * Responsibility: Enforce role-based admin access, process dashboard actions,
+ * load operational datasets, and render the admin control surface.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
 
+/* Section: Admin authentication and capability map. */
 requireAdminAuth();
 $admin_role = (string)($_SESSION['admin_role'] ?? 'super_admin');
 $can_manage = canManageElection($admin_role);
@@ -27,6 +29,7 @@ if (!in_array($location_status_filter, $allowed_location_status_filters, true)) 
 $new_user_search = sanitize($_GET['new_user_search'] ?? '');
 $location_search = sanitize($_GET['location_search'] ?? '');
 
+/* Section: Action dispatcher for mutating admin operations. */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request token. Please refresh and try again.';
@@ -213,16 +216,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $error = 'Please provide a valid voter email address.';
         } elseif (isVoterEmailOrPhoneTaken($voter_id, $email, $phone)) {
             $error = 'Another voter already uses that email or phone number.';
+        } elseif (updateVoterAdminRecord($voter_id, $full_name, $email, $phone, $status)) {
+            $message = 'Voter record updated successfully.';
+            logAuditEvent('admin', (int)$_SESSION['admin_id'], 'voter_record_updated', [
+                'voter_id' => $voter_id,
+                'status' => $status
+            ]);
         } else {
-            if (updateVoterAdminRecord($voter_id, $full_name, $email, $phone, $status)) {
-                $message = 'Voter record updated successfully.';
-                logAuditEvent('admin', (int)$_SESSION['admin_id'], 'voter_record_updated', [
-                    'voter_id' => $voter_id,
-                    'status' => $status
-                ]);
-            } else {
-                $error = 'Failed to update voter record.';
-            }
+            $error = 'Failed to update voter record.';
         }
     } elseif ($error === '' && $action === 'force_reject_voter') {
         $voter_id = (int)($_POST['voter_id'] ?? 0);
@@ -230,16 +231,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         if ($voter_id <= 0) {
             $error = 'Invalid voter selected for rejection.';
+        } elseif (forceRejectVoter($voter_id, (int)$_SESSION['admin_id'], $rejection_reason)) {
+            $message = 'Voter rejected successfully.';
+            logAuditEvent('admin', (int)$_SESSION['admin_id'], 'voter_force_rejected', [
+                'voter_id' => $voter_id,
+                'rejection_reason' => $rejection_reason
+            ]);
         } else {
-            if (forceRejectVoter($voter_id, (int)$_SESSION['admin_id'], $rejection_reason)) {
-                $message = 'Voter rejected successfully.';
-                logAuditEvent('admin', (int)$_SESSION['admin_id'], 'voter_force_rejected', [
-                    'voter_id' => $voter_id,
-                    'rejection_reason' => $rejection_reason
-                ]);
-            } else {
-                $error = 'Failed to reject voter.';
-            }
+            $error = 'Failed to reject voter.';
         }
     } elseif ($error === '' && $action === 'update_candidate') {
         $candidate_id = (int)($_POST['candidate_id'] ?? 0);
@@ -594,6 +593,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 }
 
+/* Section: Read-model hydration for dashboard widgets and tables. */
 $pending_voters = getPendingVerifications();
 $pending_voters = filterRowsByVoterName($pending_voters, $new_user_search, 'full_name');
 $verified_voters = getVerifiedVoters();
@@ -642,4 +642,5 @@ foreach ($positions as $position) {
 
 $csrf_token = getCsrfToken();
 
+/* Section: Render view. */
 require_once 'views/admin_verify_voters.view.html';

@@ -1,17 +1,20 @@
 <?php
 /*
- * Overview: Sub Admin Dashboard
- * Purpose: Handles server-side logic for this feature.
+ * Module: Sub-Admin Dashboard Controller
+ * Responsibility: Restrict access to sub-admin role, process allowed
+ * operational actions, and load dashboard datasets.
  */
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
 
+/* Section: Access control and baseline state. */
 requireAdminRole(['sub_admin']);
 
 $admin_role = (string)($_SESSION['admin_role'] ?? 'sub_admin');
 $message = '';
 $error = '';
 
+/* Section: Action dispatcher for sub-admin operations. */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 	if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
 		$error = 'Invalid request token. Please refresh and try again.';
@@ -49,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 	}
 }
 
+/* Section: Read-model hydration and render. */
 $stats = getVerificationStats();
 $positions = getAllPositions();
 $counties = getCounties();
