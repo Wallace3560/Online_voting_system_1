@@ -526,7 +526,8 @@ function sendVoterCorrectionRequestEmail($email, $token, $request_note = '') {
     $correction_link = getAppBaseUrl() . '/voter_account.php?correction_token=' . urlencode((string)$token);
     $subject = 'Action Required: Update Your Voter Details';
     $message = "Hello,\n\n"
-        . "An administrator has requested corrections to your voter details before approval.\n\n";
+        . "An administrator has requested corrections to your voter details before approval.\n"
+        . "Please review and update all required fields, including National ID, using the secure link below.\n\n";
 
     if ($request_note !== '') {
         $message .= "Admin Request: " . (string)$request_note . "\n\n";
@@ -833,6 +834,23 @@ function isVoterEmailOrPhoneTaken($voter_id, $email, $phone) {
     return $result && mysqli_num_rows($result) > 0;
 }
 
+function isVoterNationalIdTaken($voter_id, $national_id) {
+    global $conn;
+    if (!hasDbConnection()) {
+        return false;
+    }
+
+    $query = "SELECT 1 FROM voters WHERE national_id = ? AND voter_id <> ? LIMIT 1";
+    $stmt = mysqli_prepare($conn, $query);
+    if (!$stmt) {
+        return false;
+    }
+    mysqli_stmt_bind_param($stmt, "si", $national_id, $voter_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    return $result && mysqli_num_rows($result) > 0;
+}
+
 function findDuplicateRegistration($national_id, $email, $phone, $full_name, $dob, $county_id, $constituency_id, $ward_id) {
     global $conn;
     if (!hasDbConnection()) {
@@ -911,6 +929,17 @@ function verifyVoter($voter_id, $admin_id, $action, $rejection_reason = null) {
     $voter = getVoterById((int)$voter_id);
     if (!$voter) {
         return false;
+    }
+
+    if ($action === 'approve') {
+        $pending_request = getLatestPendingVoterProfileChangeRequest((int)$voter_id);
+        if (is_array($pending_request) && (int)($pending_request['request_id'] ?? 0) > 0) {
+            $approval = approveVoterProfileChangeRequest((int)$pending_request['request_id'], (int)$admin_id, 'Approved during voter verification review.');
+            if (empty($approval['ok'])) {
+                return false;
+            }
+            $voter = getVoterById((int)$voter_id) ?: $voter;
+        }
     }
 
     $status = ($action === 'approve') ? 'verified' : 'rejected';
@@ -1326,6 +1355,7 @@ function createVoterProfileChangeRequest($voter_id, $requested_data, $reason) {
     }
 
     $full_name = sanitize($requested_data['full_name'] ?? '');
+    $national_id = sanitize($requested_data['national_id'] ?? ($current['national_id'] ?? ''));
     $email = sanitize($requested_data['email'] ?? '');
     $phone = sanitize($requested_data['phone'] ?? '');
     $date_of_birth = sanitize($requested_data['date_of_birth'] ?? '');
@@ -1335,8 +1365,12 @@ function createVoterProfileChangeRequest($voter_id, $requested_data, $reason) {
     $national_id_front_path = sanitize($requested_data['national_id_front_path'] ?? '');
     $national_id_back_path = sanitize($requested_data['national_id_back_path'] ?? '');
 
-    if ($full_name === '' || $email === '' || $phone === '' || $date_of_birth === '' || $county_id <= 0 || $constituency_id <= 0 || $ward_id <= 0) {
+    if ($full_name === '' || $national_id === '' || $email === '' || $phone === '' || $date_of_birth === '' || $county_id <= 0 || $constituency_id <= 0 || $ward_id <= 0) {
         return ['ok' => false, 'message' => 'All profile fields are required.'];
+    }
+
+    if (!preg_match('/^\d+$/', $national_id)) {
+        return ['ok' => false, 'message' => 'National ID must contain digits only.'];
     }
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -1375,7 +1409,12 @@ function createVoterProfileChangeRequest($voter_id, $requested_data, $reason) {
         return ['ok' => false, 'message' => 'Another voter already uses that email or phone number.'];
     }
 
+    if (isVoterNationalIdTaken($voter_id, $national_id)) {
+        return ['ok' => false, 'message' => 'Another voter already uses that National ID.'];
+    }
+
     $payload = [
+        'national_id' => $national_id,
         'full_name' => $full_name,
         'email' => $email,
         'phone' => $phone,
@@ -1391,19 +1430,44 @@ function createVoterProfileChangeRequest($voter_id, $requested_data, $reason) {
         return ['ok' => false, 'message' => 'Could not prepare update request payload.'];
     }
 
-    $query = "INSERT INTO voter_profile_change_requests
-              (voter_id, reason, requested_data)
-              VALUES (?, ?, ?)";
-    $stmt = mysqli_prepare($conn, $query);
-    if (!$stmt) {
-        return ['ok' => false, 'message' => 'Could not create update request.'];
-    }
-    mysqli_stmt_bind_param($stmt, "iss", $voter_id, $reason, $requested_json);
-    if (!mysqli_stmt_execute($stmt)) {
-        return ['ok' => false, 'message' => 'Could not save update request.'];
+    $request_id = 0;
+    mysqli_begin_transaction($conn);
+    try {
+        $query = "INSERT INTO voter_profile_change_requests
+                  (voter_id, reason, requested_data)
+                  VALUES (?, ?, ?)";
+        $stmt = mysqli_prepare($conn, $query);
+        if (!$stmt) {
+            throw new Exception('Could not create update request.');
+        }
+        mysqli_stmt_bind_param($stmt, "iss", $voter_id, $reason, $requested_json);
+        if (!mysqli_stmt_execute($stmt)) {
+            throw new Exception('Could not save update request.');
+        }
+
+        $request_id = (int)mysqli_insert_id($conn);
+
+        $pending_status = 'pending';
+        $pending_admin_verified = 0;
+        $queue_query = "UPDATE voters
+                        SET verification_status = ?, admin_verified = ?, verified_by = NULL, verified_at = NULL, rejection_reason = NULL
+                        WHERE voter_id = ?
+                        LIMIT 1";
+        $queue_stmt = mysqli_prepare($conn, $queue_query);
+        if (!$queue_stmt) {
+            throw new Exception('Could not queue voter account for admin re-verification.');
+        }
+        mysqli_stmt_bind_param($queue_stmt, "sii", $pending_status, $pending_admin_verified, $voter_id);
+        if (!mysqli_stmt_execute($queue_stmt)) {
+            throw new Exception('Could not queue voter account for admin re-verification.');
+        }
+
+        mysqli_commit($conn);
+    } catch (Exception $e) {
+        mysqli_rollback($conn);
+        return ['ok' => false, 'message' => $e->getMessage()];
     }
 
-    $request_id = (int)mysqli_insert_id($conn);
     $admin_notified = sendProfileChangeRequestNotificationsToAdmins($current, $reason, $payload);
 
     if ($request_id > 0) {
@@ -1419,7 +1483,7 @@ function createVoterProfileChangeRequest($voter_id, $requested_data, $reason) {
         }
     }
 
-    return ['ok' => true, 'message' => 'Profile update request submitted for admin approval.'];
+    return ['ok' => true, 'message' => 'Profile update request submitted and queued for admin verification approval.'];
 }
 
 function createVoterRelocationRequest($voter_id, $county_id, $constituency_id, $ward_id, $reason) {
@@ -1451,6 +1515,7 @@ function createVoterRelocationRequest($voter_id, $county_id, $constituency_id, $
     }
 
     $payload = [
+        'national_id' => (string)($voter['national_id'] ?? ''),
         'full_name' => (string)($voter['full_name'] ?? ''),
         'email' => (string)($voter['email'] ?? ''),
         'phone' => (string)($voter['phone'] ?? ''),
@@ -1496,6 +1561,26 @@ function getVoterProfileChangeRequestsByVoter($voter_id) {
     $result = mysqli_stmt_get_result($stmt);
     $rows = $result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
     return enrichProfileChangeRequestRows($rows);
+}
+
+function getLatestPendingVoterProfileChangeRequest($voter_id) {
+    global $conn;
+    if (!hasDbConnection()) {
+        return null;
+    }
+
+    $query = "SELECT * FROM voter_profile_change_requests
+              WHERE voter_id = ? AND status = 'pending'
+              ORDER BY created_at DESC, request_id DESC
+              LIMIT 1";
+    $stmt = mysqli_prepare($conn, $query);
+    if (!$stmt) {
+        return null;
+    }
+    mysqli_stmt_bind_param($stmt, "i", $voter_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    return $result ? mysqli_fetch_assoc($result) : null;
 }
 
 function getLatestVoterLocationChangeRequest($voter_id) {
@@ -1600,6 +1685,7 @@ function approveVoterProfileChangeRequest($request_id, $admin_id, $decision_note
         return ['ok' => false, 'message' => 'Request payload is invalid.'];
     }
 
+    $national_id = sanitize($requested['national_id'] ?? ($voter['national_id'] ?? ''));
     $full_name = sanitize($requested['full_name'] ?? '');
     $email = sanitize($requested['email'] ?? '');
     $phone = sanitize($requested['phone'] ?? '');
@@ -1610,8 +1696,12 @@ function approveVoterProfileChangeRequest($request_id, $admin_id, $decision_note
     $national_id_front_path = sanitize($requested['national_id_front_path'] ?? '');
     $national_id_back_path = sanitize($requested['national_id_back_path'] ?? '');
 
-    if ($full_name === '' || $email === '' || $phone === '' || $date_of_birth === '' || $county_id <= 0 || $constituency_id <= 0 || $ward_id <= 0) {
+    if ($full_name === '' || $national_id === '' || $email === '' || $phone === '' || $date_of_birth === '' || $county_id <= 0 || $constituency_id <= 0 || $ward_id <= 0) {
         return ['ok' => false, 'message' => 'Requested details are incomplete.'];
+    }
+
+    if (!preg_match('/^\d+$/', $national_id)) {
+        return ['ok' => false, 'message' => 'National ID must contain digits only.'];
     }
 
     if (!isValidLocationHierarchy($county_id, $constituency_id, $ward_id)) {
@@ -1620,6 +1710,10 @@ function approveVoterProfileChangeRequest($request_id, $admin_id, $decision_note
 
     if (isVoterEmailOrPhoneTaken($voter_id, $email, $phone)) {
         return ['ok' => false, 'message' => 'Another voter already uses that email or phone number.'];
+    }
+
+    if (isVoterNationalIdTaken($voter_id, $national_id)) {
+        return ['ok' => false, 'message' => 'Another voter already uses that National ID.'];
     }
 
     mysqli_begin_transaction($conn);
@@ -1662,8 +1756,10 @@ function approveVoterProfileChangeRequest($request_id, $admin_id, $decision_note
             throw new Exception('Could not archive previous voter data.');
         }
 
+        mysqli_query($conn, "SET @allow_national_id_update = 1");
+
         $update_query = "UPDATE voters
-                         SET full_name = ?, email = ?, phone = ?, county_id = ?, constituency_id = ?, ward_id = ?, date_of_birth = ?,
+                         SET national_id = ?, full_name = ?, email = ?, phone = ?, county_id = ?, constituency_id = ?, ward_id = ?, date_of_birth = ?,
                              national_id_front_path = IF(? = '', national_id_front_path, ?),
                              national_id_back_path = IF(? = '', national_id_back_path, ?)
                          WHERE voter_id = ?
@@ -1674,7 +1770,8 @@ function approveVoterProfileChangeRequest($request_id, $admin_id, $decision_note
         }
         mysqli_stmt_bind_param(
             $update_stmt,
-            "sssiiisssssi",
+            "ssssiiisssssi",
+            $national_id,
             $full_name,
             $email,
             $phone,
@@ -1691,6 +1788,8 @@ function approveVoterProfileChangeRequest($request_id, $admin_id, $decision_note
         if (!mysqli_stmt_execute($update_stmt)) {
             throw new Exception('Could not update voter details.');
         }
+
+        mysqli_query($conn, "SET @allow_national_id_update = 0");
 
         $reviewed_at = date('Y-m-d H:i:s');
         $status = 'approved';
@@ -1721,6 +1820,7 @@ function approveVoterProfileChangeRequest($request_id, $admin_id, $decision_note
         }
         return ['ok' => true, 'message' => 'Profile change request approved and voter details updated.'];
     } catch (Exception $e) {
+        mysqli_query($conn, "SET @allow_national_id_update = 0");
         mysqli_rollback($conn);
         return ['ok' => false, 'message' => $e->getMessage()];
     }
@@ -2369,24 +2469,22 @@ function ensureSecuritySchema() {
         mysqli_query($conn, "ALTER TABLE voters ADD COLUMN profile_correction_requested_at DATETIME NULL AFTER profile_correction_note");
     }
 
-    $trigger_check = mysqli_prepare($conn, "SELECT 1
+    $trigger_query = mysqli_query($conn, "SELECT ACTION_STATEMENT
         FROM information_schema.TRIGGERS
         WHERE TRIGGER_SCHEMA = DATABASE()
           AND TRIGGER_NAME = 'trg_voters_national_id_immutable'
         LIMIT 1");
-    $trigger_exists = false;
-    if ($trigger_check) {
-        mysqli_stmt_execute($trigger_check);
-        $trigger_result = mysqli_stmt_get_result($trigger_check);
-        $trigger_exists = $trigger_result && mysqli_num_rows($trigger_result) > 0;
-    }
+    $trigger_row = $trigger_query ? mysqli_fetch_assoc($trigger_query) : null;
+    $trigger_action = strtolower((string)($trigger_row['ACTION_STATEMENT'] ?? ''));
+    $has_admin_bypass = strpos($trigger_action, '@allow_national_id_update') !== false;
 
-    if (!$trigger_exists) {
+    if (!$trigger_row || !$has_admin_bypass) {
+        @mysqli_query($conn, "DROP TRIGGER IF EXISTS trg_voters_national_id_immutable");
         @mysqli_query($conn, "CREATE TRIGGER trg_voters_national_id_immutable
             BEFORE UPDATE ON voters
             FOR EACH ROW
             BEGIN
-                IF NEW.national_id <> OLD.national_id THEN
+                IF NEW.national_id <> OLD.national_id AND COALESCE(@allow_national_id_update, 0) <> 1 THEN
                     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'National ID cannot be changed after registration';
                 END IF;
             END");

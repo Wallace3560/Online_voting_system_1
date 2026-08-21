@@ -125,7 +125,7 @@
                 </table>
             </div>
 
-            <h3 style="margin-top: 10px;">User Requests To Change Details</h3>
+            <h3 style="margin-top: 10px;">User Requests To Change Details (Admin Approval Queue)</h3>
             <h3 style="margin-top: 20px;">Registered Users (Search By Name)</h3>
             <form method="GET" action="admin_manage_voters.php" style="display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:10px;">
                 <input type="hidden" name="location_status" value="<?php echo htmlspecialchars($location_status_filter); ?>">
@@ -164,6 +164,7 @@
                                 </td>
                                 <td><?php echo htmlspecialchars($request['reason'] ?? ''); ?></td>
                                 <td>
+                                    <div><strong>National ID:</strong> <?php echo htmlspecialchars($requested['national_id'] ?? '-'); ?></div>
                                     <div><strong>Name:</strong> <?php echo htmlspecialchars($requested['full_name'] ?? '-'); ?></div>
                                     <div><strong>Email:</strong> <?php echo htmlspecialchars($requested['email'] ?? '-'); ?></div>
                                     <div><strong>Phone:</strong> <?php echo htmlspecialchars($requested['phone'] ?? '-'); ?></div>
@@ -303,7 +304,7 @@
                                             <input type="hidden" name="action" value="request_voter_corrections">
                                             <input type="hidden" name="voter_id" value="<?php echo (int)$voter['voter_id']; ?>">
                                             <textarea name="request_note" rows="3" required placeholder="Type what the voter should correct before approval.">Please correct your submitted details and upload clear ID photos.</textarea>
-                                            <button class="btn btn-secondary" type="submit">Request Detail Corrections</button>
+                                            <button class="btn btn-secondary" type="submit">Send Change Details Link</button>
                                         </form>
                                     </div>
                                     <?php else: ?>

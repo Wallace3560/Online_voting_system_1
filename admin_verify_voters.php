@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     $action = sanitize($_POST['action']);
-    $admin_actions = ['approve', 'reject', 'approve_profile_change', 'reject_profile_change', 'set_election_schedule', 'publish_results', 'hide_results', 'add_candidate', 'update_voter', 'force_reject_voter', 'update_candidate', 'archive_reset_election', 'download_archived_results', 'create_by_election', 'add_by_election_candidate', 'close_by_election', 'mark_candidate_deceased', 'create_sub_admin', 'submit_manual_vote_batch', 'review_manual_vote_batch'];
+    $admin_actions = ['approve', 'reject', 'request_voter_corrections', 'approve_profile_change', 'reject_profile_change', 'set_election_schedule', 'publish_results', 'hide_results', 'add_candidate', 'update_voter', 'force_reject_voter', 'update_candidate', 'archive_reset_election', 'download_archived_results', 'create_by_election', 'add_by_election_candidate', 'close_by_election', 'mark_candidate_deceased', 'create_sub_admin', 'submit_manual_vote_batch', 'review_manual_vote_batch'];
 
     $sensitive_actions = ['set_election_schedule', 'publish_results', 'hide_results', 'archive_reset_election', 'download_archived_results'];
     if ($error === '' && in_array($action, $admin_actions, true) && !$can_manage) {
@@ -62,6 +62,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 ]);
             } else {
                 $error = 'Failed to process voter verification.';
+            }
+        }
+    } elseif ($error === '' && $action === 'request_voter_corrections') {
+        if (!$can_verify_voters) {
+            $error = 'Only super-admin and sub-admin roles can request voter corrections.';
+        } else {
+            $voter_id = (int)($_POST['voter_id'] ?? 0);
+            $request_note = sanitize($_POST['request_note'] ?? 'Please review and update your full profile details, including National ID and clear ID photos.');
+            if ($voter_id <= 0) {
+                $error = 'Invalid voter selected for correction request.';
+            } else {
+                $correction_result = requestVoterVerificationCorrections($voter_id, (int)$_SESSION['admin_id'], $request_note);
+                if (!empty($correction_result['ok'])) {
+                    $message = (string)$correction_result['message'];
+                    logAuditEvent('admin', (int)$_SESSION['admin_id'], 'voter_correction_requested_from_verify_dashboard', [
+                        'voter_id' => $voter_id,
+                        'request_note' => $request_note,
+                        'email_sent' => !empty($correction_result['email_sent']) ? 1 : 0
+                    ]);
+                } else {
+                    $error = (string)($correction_result['message'] ?? 'Failed to request corrections from voter.');
+                }
             }
         }
     } elseif ($error === '' && $action === 'approve_profile_change') {

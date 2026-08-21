@@ -87,6 +87,13 @@
             </div>
             <?php endif; ?>
 
+                                        <form method="POST" action="admin_verify_voters.php" style="display:grid; gap:6px;">
+                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                            <input type="hidden" name="action" value="request_voter_corrections">
+                                            <input type="hidden" name="voter_id" value="<?php echo (int)($voter['voter_id'] ?? 0); ?>">
+                                            <textarea name="request_note" rows="3" required placeholder="Tell the user what to correct before approval.">Please review and update your full profile details, including National ID and clear ID photos.</textarea>
+                                            <button class="btn btn-secondary" type="submit">Send Change Details Link</button>
+                                        </form>
             <?php if (empty($can_manage_sensitive) && ($admin_role ?? '') === 'election_officer'): ?>
                 <div class="alert alert-info" style="margin-bottom: 12px;">Election officers can read election results but cannot publish, hide, archive, or change election schedule.</div>
             <?php endif; ?>

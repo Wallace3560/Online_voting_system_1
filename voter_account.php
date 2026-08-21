@@ -85,6 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
 
         $request_payload = [
+            'national_id' => sanitize($_POST['national_id'] ?? ''),
             'full_name' => sanitize($_POST['full_name'] ?? ''),
             'email' => sanitize($_POST['email'] ?? ''),
             'phone' => sanitize($_POST['phone'] ?? ''),
