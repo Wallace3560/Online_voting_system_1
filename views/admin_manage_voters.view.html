@@ -299,13 +299,6 @@
                                             <input type="text" name="rejection_reason" placeholder="Rejection reason" value="<?php echo htmlspecialchars($voter['rejection_reason'] ?? ''); ?>">
                                             <button class="btn btn-danger" type="submit">Reject Voter</button>
                                         </form>
-                                        <form method="POST" action="admin_manage_voters.php" style="display:grid; gap:6px; margin-top:8px;">
-                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
-                                            <input type="hidden" name="action" value="request_voter_corrections">
-                                            <input type="hidden" name="voter_id" value="<?php echo (int)$voter['voter_id']; ?>">
-                                            <textarea name="request_note" rows="3" required placeholder="Type what the voter should correct before approval.">Please correct your submitted details and upload clear ID photos.</textarea>
-                                            <button class="btn btn-secondary" type="submit">Send Change Details Link</button>
-                                        </form>
                                     </div>
                                     <?php else: ?>
                                     <span class="status-badge status-warning">Read-only role</span>

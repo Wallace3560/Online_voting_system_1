@@ -618,13 +618,6 @@
                                             <button class="btn btn-secondary" type="submit">Add Candidate</button>
                                         </form>
 
-                                        <?php if (($by['status'] ?? '') === 'active'): ?>
-                                        <form method="POST" action="admin_verify_voters.php" style="display:inline;">
-                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
-                                            <input type="hidden" name="action" value="close_by_election">
-                                            <input type="hidden" name="by_election_id" value="<?php echo (int)$by['by_election_id']; ?>">
-                                            <button class="btn btn-danger" type="submit">Close By-Election</button>
-                                        </form>
                                         <?php endif; ?>
                                     <?php else: ?>
                                     <span class="status-badge status-warning">Read-only role</span>
