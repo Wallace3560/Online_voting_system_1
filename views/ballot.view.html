@@ -303,12 +303,24 @@
         </div>
     </div>
 </div>
+<?php $flash_post_message = (!empty($message) && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') ? (string)$message : ''; ?>
+<div id="post-message-payload" data-message="<?php echo htmlspecialchars($flash_post_message, ENT_QUOTES); ?>" hidden></div>
 <script>
-<?php if (!empty($message) && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'): ?>
-window.addEventListener('DOMContentLoaded', function () {
-    window.alert(<?php echo json_encode((string)$message); ?>);
-});
-<?php endif; ?>
+(function () {
+    var payload = document.getElementById('post-message-payload');
+    if (!payload) {
+        return;
+    }
+
+    var message = (payload.getAttribute('data-message') || '').trim();
+    if (message === '') {
+        return;
+    }
+
+    window.addEventListener('DOMContentLoaded', function () {
+        window.alert(message);
+    });
+})();
 
 (function () {
     // view-redirect-guard: ensure template previews route to the controller endpoint
