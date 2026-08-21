@@ -617,7 +617,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
 /* Section: Read-model hydration for dashboard widgets and tables. */
 $pending_voters = getPendingVerifications();
-$pending_voters = filterRowsByVoterName($pending_voters, $new_user_search, 'full_name');
+$new_user_search_key = strtolower(trim((string)$new_user_search));
+if ($new_user_search_key !== '') {
+    $pending_voters = array_values(array_filter((array)$pending_voters, static function ($voter) use ($new_user_search_key) {
+        $search_fields = [
+            (string)($voter['full_name'] ?? ''),
+            (string)($voter['national_id'] ?? ''),
+            (string)($voter['email'] ?? ''),
+            (string)($voter['phone'] ?? '')
+        ];
+        foreach ($search_fields as $field_value) {
+            if (strpos(strtolower(trim($field_value)), $new_user_search_key) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }));
+}
 $verified_voters = getVerifiedVoters();
 $rejected_voters = getRejectedVoters();
 $all_voters = getAllRegisteredVoters();
@@ -652,7 +668,23 @@ $pending_manual_batches = getPendingManualVoteBatches();
 $location_profile_requests = $location_status_filter === 'all'
     ? getVoterProfileChangeRequests()
     : getVoterProfileChangeRequests($location_status_filter);
-$location_profile_requests = filterRowsByVoterName($location_profile_requests, $location_search, 'voter_name');
+$location_search_key = strtolower(trim((string)$location_search));
+if ($location_search_key !== '') {
+    $location_profile_requests = array_values(array_filter((array)$location_profile_requests, static function ($request_row) use ($location_search_key) {
+        $search_fields = [
+            (string)($request_row['voter_name'] ?? ''),
+            (string)($request_row['national_id'] ?? ''),
+            (string)($request_row['current_email'] ?? ''),
+            (string)($request_row['current_phone'] ?? '')
+        ];
+        foreach ($search_fields as $field_value) {
+            if (strpos(strtolower(trim($field_value)), $location_search_key) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }));
+}
 
 $candidate_rows = [];
 foreach ($positions as $position) {

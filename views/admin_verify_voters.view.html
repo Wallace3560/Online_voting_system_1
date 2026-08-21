@@ -140,61 +140,62 @@
                     <input type="text" name="new_user_search" value="<?php echo htmlspecialchars($new_user_search); ?>" placeholder="Type voter full name">
                 </div>
                 <button class="btn btn-secondary" type="submit">Search User</button>
-                <a class="btn btn-danger" href="admin_verify_voters.php?location_status=<?php echo urlencode((string)$location_status_filter); ?>&location_search=<?php echo urlencode((string)$location_search); ?>">Clear Search</a>
             </form>
-            <div class="table-wrap" style="margin-bottom: 20px;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>National ID</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                            <th>Location</th>
-                            <th>Requested At</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    <?php if (empty($pending_voters)): ?>
-                        <tr><td colspan="7">No pending new user requests found for the current search.</td></tr>
-                    <?php else: ?>
-                        <?php foreach ($pending_voters as $voter): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($voter['full_name'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($voter['national_id'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($voter['email'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($voter['phone'] ?? ''); ?></td>
-                                <td>
-                                    <div><strong>County:</strong> <?php echo htmlspecialchars($voter['county_name'] ?? '-'); ?></div>
-                                    <div><strong>Constituency:</strong> <?php echo htmlspecialchars($voter['constituency_name'] ?? '-'); ?></div>
-                                    <div><strong>Ward:</strong> <?php echo htmlspecialchars($voter['ward_name'] ?? '-'); ?></div>
-                                </td>
-                                <td><?php echo htmlspecialchars($voter['registration_date'] ?? ''); ?></td>
-                                <td>
-                                    <?php if (!empty($can_verify_voters)): ?>
-                                        <form method="POST" action="admin_verify_voters.php" style="display:grid; gap:6px; margin-bottom:8px;">
-                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
-                                            <input type="hidden" name="action" value="approve">
-                                            <input type="hidden" name="voter_id" value="<?php echo (int)($voter['voter_id'] ?? 0); ?>">
-                                            <button class="btn btn-primary" type="submit">Approve User</button>
-                                        </form>
-                                        <form method="POST" action="admin_verify_voters.php" style="display:grid; gap:6px;">
-                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
-                                            <input type="hidden" name="action" value="reject">
-                                            <input type="hidden" name="voter_id" value="<?php echo (int)($voter['voter_id'] ?? 0); ?>">
-                                            <input type="text" name="rejection_reason" value="Rejected by admin" placeholder="Rejection reason">
-                                            <button class="btn btn-danger" type="submit">Reject User</button>
-                                        </form>
-                                    <?php else: ?>
-                                        <span class="status-badge status-warning">Read-only role</span>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                    </tbody>
-                </table>
+            <div class="request-scroll-list" style="margin-bottom: 20px;" id="pending-user-requests">
+                <?php if (empty($pending_voters)): ?>
+                    <div class="request-empty">No pending new user requests found for the current search.</div>
+                <?php else: ?>
+                    <?php foreach ($pending_voters as $voter): ?>
+                        <article class="request-card">
+                            <div class="request-card-head">
+                                <h4><?php echo htmlspecialchars($voter['full_name'] ?? ''); ?></h4>
+                                <span class="status-badge status-warning">Pending Verification</span>
+                            </div>
+                            <div class="request-meta-grid">
+                                <div><strong>National ID:</strong> <?php echo htmlspecialchars($voter['national_id'] ?? ''); ?></div>
+                                <div><strong>Email:</strong> <?php echo htmlspecialchars($voter['email'] ?? ''); ?></div>
+                                <div><strong>Phone:</strong> <?php echo htmlspecialchars($voter['phone'] ?? ''); ?></div>
+                                <div><strong>Requested At:</strong> <?php echo htmlspecialchars($voter['registration_date'] ?? ''); ?></div>
+                            </div>
+                            <div class="request-location-block">
+                                <div><strong>County:</strong> <?php echo htmlspecialchars($voter['county_name'] ?? '-'); ?></div>
+                                <div><strong>Constituency:</strong> <?php echo htmlspecialchars($voter['constituency_name'] ?? '-'); ?></div>
+                                <div><strong>Ward:</strong> <?php echo htmlspecialchars($voter['ward_name'] ?? '-'); ?></div>
+                            </div>
+                            <div class="request-manage-row">
+                                <?php if (!empty($can_verify_voters)): ?>
+                                    <button
+                                        type="button"
+                                        class="btn btn-secondary manage-dialog-trigger"
+                                        data-manage-title="Manage New User: <?php echo htmlspecialchars($voter['full_name'] ?? 'Voter'); ?>"
+                                        data-manage-content-id="pending-manage-<?php echo (int)($voter['voter_id'] ?? 0); ?>"
+                                    >
+                                        Manage
+                                    </button>
+                                    <div class="manage-dialog-template" id="pending-manage-<?php echo (int)($voter['voter_id'] ?? 0); ?>" hidden>
+                                        <div class="manage-actions-grid">
+                                            <form method="POST" action="admin_verify_voters.php" style="display:grid; gap:6px; margin-bottom:8px;">
+                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                                <input type="hidden" name="action" value="approve">
+                                                <input type="hidden" name="voter_id" value="<?php echo (int)($voter['voter_id'] ?? 0); ?>">
+                                                <button class="btn btn-primary" type="submit">Approve User</button>
+                                            </form>
+                                            <form method="POST" action="admin_verify_voters.php" style="display:grid; gap:6px;">
+                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                                <input type="hidden" name="action" value="reject">
+                                                <input type="hidden" name="voter_id" value="<?php echo (int)($voter['voter_id'] ?? 0); ?>">
+                                                <input type="text" name="rejection_reason" value="Rejected by admin" placeholder="Rejection reason">
+                                                <button class="btn btn-danger" type="submit">Reject User</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    <span class="status-badge status-warning">Read-only role</span>
+                                <?php endif; ?>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
 
             <h3 style="margin-top: 20px;">Location Change Requests</h3>
@@ -214,84 +215,84 @@
                     <input type="text" name="location_search" value="<?php echo htmlspecialchars($location_search); ?>" placeholder="Type voter full name">
                 </div>
                 <button class="btn btn-secondary" type="submit">Search User</button>
-                <a class="btn btn-danger" href="admin_verify_voters.php?location_status=<?php echo urlencode((string)$location_status_filter); ?>&new_user_search=<?php echo urlencode((string)$new_user_search); ?>">Clear Search</a>
             </form>
-            <div class="table-wrap" style="margin-bottom: 20px;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Voter</th>
-                            <th>Current Location</th>
-                            <th>Requested Location</th>
-                            <th>Status</th>
-                            <th>Reason</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    <?php
-                    $has_location_requests = false;
-                    foreach (($location_profile_requests ?? []) as $location_request):
-                        if (empty($location_request['is_location_change'])) {
-                            continue;
-                        }
-                        $has_location_requests = true;
-                        $location_status = (string)($location_request['status'] ?? 'pending');
-                    ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($location_request['created_at'] ?? ''); ?></td>
-                            <td>
-                                <div><strong><?php echo htmlspecialchars($location_request['voter_name'] ?? ''); ?></strong></div>
-                                <div>ID: <?php echo htmlspecialchars($location_request['national_id'] ?? ''); ?></div>
-                            </td>
-                            <td>
+            <div class="request-scroll-list" style="margin-bottom: 20px;" id="location-change-requests">
+                <?php
+                $has_location_requests = false;
+                foreach (($location_profile_requests ?? []) as $location_request):
+                    if (empty($location_request['is_location_change'])) {
+                        continue;
+                    }
+                    $has_location_requests = true;
+                    $location_status = (string)($location_request['status'] ?? 'pending');
+                ?>
+                    <article class="request-card">
+                        <div class="request-card-head">
+                            <h4><?php echo htmlspecialchars($location_request['voter_name'] ?? ''); ?></h4>
+                            <?php if ($location_status === 'approved'): ?>
+                                <span class="status-badge status-active">Approved</span>
+                            <?php elseif ($location_status === 'rejected'): ?>
+                                <span class="status-badge status-invalid">Rejected</span>
+                            <?php else: ?>
+                                <span class="status-badge status-warning">Pending</span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="request-meta-grid">
+                            <div><strong>National ID:</strong> <?php echo htmlspecialchars($location_request['national_id'] ?? ''); ?></div>
+                            <div><strong>Requested At:</strong> <?php echo htmlspecialchars($location_request['created_at'] ?? ''); ?></div>
+                            <div style="grid-column: 1 / -1;"><strong>Reason:</strong> <?php echo htmlspecialchars($location_request['reason'] ?? ''); ?></div>
+                        </div>
+                        <div class="request-location-dual">
+                            <div>
+                                <h5>Current Location</h5>
                                 <div><strong>County:</strong> <?php echo htmlspecialchars($location_request['current_county_name'] ?? '-'); ?></div>
                                 <div><strong>Constituency:</strong> <?php echo htmlspecialchars($location_request['current_constituency_name'] ?? '-'); ?></div>
                                 <div><strong>Ward:</strong> <?php echo htmlspecialchars($location_request['current_ward_name'] ?? '-'); ?></div>
-                            </td>
-                            <td>
+                            </div>
+                            <div>
+                                <h5>Requested Location</h5>
                                 <div><strong>County:</strong> <?php echo htmlspecialchars($location_request['requested_county_name'] ?? '-'); ?></div>
                                 <div><strong>Constituency:</strong> <?php echo htmlspecialchars($location_request['requested_constituency_name'] ?? '-'); ?></div>
                                 <div><strong>Ward:</strong> <?php echo htmlspecialchars($location_request['requested_ward_name'] ?? '-'); ?></div>
-                            </td>
-                            <td>
-                                <?php if ($location_status === 'approved'): ?>
-                                    <span class="status-badge status-active">Approved</span>
-                                <?php elseif ($location_status === 'rejected'): ?>
-                                    <span class="status-badge status-invalid">Rejected</span>
-                                <?php else: ?>
-                                    <span class="status-badge status-warning">Pending</span>
-                                <?php endif; ?>
-                            </td>
-                            <td><?php echo htmlspecialchars($location_request['reason'] ?? ''); ?></td>
-                            <td>
-                                <?php if ($location_status === 'pending' && !empty($can_manage)): ?>
-                                    <form method="POST" action="admin_verify_voters.php" style="display:grid; gap:6px; margin-bottom:8px;">
-                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
-                                        <input type="hidden" name="action" value="approve_profile_change">
-                                        <input type="hidden" name="request_id" value="<?php echo (int)$location_request['request_id']; ?>">
-                                        <input type="text" name="decision_note" value="Approved relocation request" placeholder="Approval note">
-                                        <button class="btn btn-primary" type="submit">Approve</button>
-                                    </form>
-                                    <form method="POST" action="admin_verify_voters.php" style="display:grid; gap:6px;">
-                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
-                                        <input type="hidden" name="action" value="reject_profile_change">
-                                        <input type="hidden" name="request_id" value="<?php echo (int)$location_request['request_id']; ?>">
-                                        <input type="text" name="decision_note" value="Relocation request rejected" placeholder="Rejection reason">
-                                        <button class="btn btn-danger" type="submit">Reject</button>
-                                    </form>
-                                <?php else: ?>
-                                    <span class="status-badge status-inactive">No Action</span>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                    <?php if (!$has_location_requests): ?>
-                        <tr><td colspan="7">No location change requests found for this filter.</td></tr>
-                    <?php endif; ?>
-                    </tbody>
-                </table>
+                            </div>
+                        </div>
+                        <div class="request-manage-row">
+                            <?php if ($location_status === 'pending' && !empty($can_manage)): ?>
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary manage-dialog-trigger"
+                                    data-manage-title="Manage Location Request: <?php echo htmlspecialchars($location_request['voter_name'] ?? 'Voter'); ?>"
+                                    data-manage-content-id="location-manage-<?php echo (int)$location_request['request_id']; ?>"
+                                >
+                                    Manage
+                                </button>
+                                <div class="manage-dialog-template" id="location-manage-<?php echo (int)$location_request['request_id']; ?>" hidden>
+                                    <div class="manage-actions-grid">
+                                        <form method="POST" action="admin_verify_voters.php" style="display:grid; gap:6px; margin-bottom:8px;">
+                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                            <input type="hidden" name="action" value="approve_profile_change">
+                                            <input type="hidden" name="request_id" value="<?php echo (int)$location_request['request_id']; ?>">
+                                            <input type="text" name="decision_note" value="Approved relocation request" placeholder="Approval note">
+                                            <button class="btn btn-primary" type="submit">Approve</button>
+                                        </form>
+                                        <form method="POST" action="admin_verify_voters.php" style="display:grid; gap:6px;">
+                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                            <input type="hidden" name="action" value="reject_profile_change">
+                                            <input type="hidden" name="request_id" value="<?php echo (int)$location_request['request_id']; ?>">
+                                            <input type="text" name="decision_note" value="Relocation request rejected" placeholder="Rejection reason">
+                                            <button class="btn btn-danger" type="submit">Reject</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            <?php else: ?>
+                                <span class="status-badge status-inactive">No Action</span>
+                            <?php endif; ?>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+                <?php if (!$has_location_requests): ?>
+                    <div class="request-empty">No location change requests found for this filter.</div>
+                <?php endif; ?>
             </div>
 
             <?php if (!empty($can_create_sub_admins)): ?>
@@ -714,6 +715,13 @@
         </div>
     </div>
 </div>
+<dialog id="manage-dialog" aria-labelledby="manage-dialog-title">
+    <div class="manage-dialog-header">
+        <h4 id="manage-dialog-title">Manage Request</h4>
+        <button type="button" class="btn btn-danger manage-dialog-close" id="manage-dialog-close">Close</button>
+    </div>
+    <div id="manage-dialog-body" class="manage-dialog-body"></div>
+</dialog>
 <script src="assets/js/admin_verify_voters.js" defer></script>
 <script>
 window.__ROLE_HOME__ = 'admin_verify_voters.php';
@@ -723,6 +731,57 @@ window.addEventListener('DOMContentLoaded', function () {
     window.alert(<?php echo json_encode((string)$message); ?>);
 });
 <?php endif; ?>
+
+window.addEventListener('DOMContentLoaded', function () {
+    var dialog = document.getElementById('manage-dialog');
+    var dialogBody = document.getElementById('manage-dialog-body');
+    var dialogTitle = document.getElementById('manage-dialog-title');
+    var closeBtn = document.getElementById('manage-dialog-close');
+
+    if (!dialog || !dialogBody || !dialogTitle) {
+        return;
+    }
+
+    document.addEventListener('click', function (event) {
+        var trigger = event.target.closest('.manage-dialog-trigger');
+        if (!trigger) {
+            return;
+        }
+
+        var contentId = trigger.getAttribute('data-manage-content-id') || '';
+        var titleText = trigger.getAttribute('data-manage-title') || 'Manage Request';
+        var sourceContent = contentId !== '' ? document.getElementById(contentId) : null;
+
+        if (!sourceContent) {
+            return;
+        }
+
+        dialogTitle.textContent = titleText;
+        dialogBody.innerHTML = sourceContent.innerHTML;
+        if (typeof dialog.showModal === 'function') {
+            dialog.showModal();
+        } else {
+            dialog.setAttribute('open', 'open');
+        }
+    });
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function () {
+            dialog.close();
+        });
+    }
+
+    dialog.addEventListener('click', function (event) {
+        var bounds = dialog.getBoundingClientRect();
+        var isOutside = event.clientX < bounds.left
+            || event.clientX > bounds.right
+            || event.clientY < bounds.top
+            || event.clientY > bounds.bottom;
+        if (isOutside) {
+            dialog.close();
+        }
+    });
+});
 
 (function () {
     // view-redirect-guard: ensure template previews route to the controller endpoint

@@ -945,9 +945,10 @@ function verifyVoter($voter_id, $admin_id, $action, $rejection_reason = null) {
     $status = ($action === 'approve') ? 'verified' : 'rejected';
     $verified_at = date('Y-m-d H:i:s');
     $admin_verified = ($action === 'approve') ? 1 : 0;
+    $account_status = ($action === 'approve') ? 'active' : 'inactive';
 
     $query = "UPDATE voters
-              SET admin_verified = ?, verification_status = ?, verified_by = ?, verified_at = ?, rejection_reason = ?,
+              SET status = ?, admin_verified = ?, verification_status = ?, verified_by = ?, verified_at = ?, rejection_reason = ?,
                   profile_correction_token_hash = NULL, profile_correction_expires_at = NULL
               WHERE voter_id = ?";
 
@@ -955,7 +956,7 @@ function verifyVoter($voter_id, $admin_id, $action, $rejection_reason = null) {
     if (!$stmt) {
         return false;
     }
-    mysqli_stmt_bind_param($stmt, "isissi", $admin_verified, $status, $admin_id, $verified_at, $rejection_reason, $voter_id);
+    mysqli_stmt_bind_param($stmt, "sisisis", $account_status, $admin_verified, $status, $admin_id, $verified_at, $rejection_reason, $voter_id);
     $updated = mysqli_stmt_execute($stmt);
     if (!$updated) {
         return false;
@@ -974,7 +975,7 @@ function canLogin($voter_id) {
     if (!hasDbConnection()) {
         return false;
     }
-    $query = "SELECT email_verified, admin_verified, verification_status FROM voters WHERE voter_id = ?";
+    $query = "SELECT status, email_verified, admin_verified, verification_status FROM voters WHERE voter_id = ?";
     $stmt = mysqli_prepare($conn, $query);
     if (!$stmt) {
         return false;
@@ -985,7 +986,12 @@ function canLogin($voter_id) {
     $voter = mysqli_fetch_assoc($result);
 
     if ($voter) {
-        return ((int)$voter['email_verified'] === 1 && (int)$voter['admin_verified'] === 1 && $voter['verification_status'] === 'verified');
+        return (
+            (string)($voter['status'] ?? '') === 'active'
+            && (int)$voter['email_verified'] === 1
+            && (int)$voter['admin_verified'] === 1
+            && $voter['verification_status'] === 'verified'
+        );
     }
     return false;
 }
