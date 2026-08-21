@@ -956,7 +956,7 @@ function verifyVoter($voter_id, $admin_id, $action, $rejection_reason = null) {
     if (!$stmt) {
         return false;
     }
-    mysqli_stmt_bind_param($stmt, "sisisis", $account_status, $admin_verified, $status, $admin_id, $verified_at, $rejection_reason, $voter_id);
+    mysqli_stmt_bind_param($stmt, "sisissi", $account_status, $admin_verified, $status, $admin_id, $verified_at, $rejection_reason, $voter_id);
     $updated = mysqli_stmt_execute($stmt);
     if (!$updated) {
         return false;
