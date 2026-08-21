@@ -132,7 +132,7 @@
             <?php endif; ?>
 
             <h3 style="margin-top: 20px;">Pending New User Verification Requests</h3>
-            <form method="GET" action="admin_verify_voters.php" style="display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:10px;">
+            <form id="pending-search-form" method="GET" action="admin_verify_voters.php" style="display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:10px;">
                 <input type="hidden" name="location_status" value="<?php echo htmlspecialchars($location_status_filter); ?>">
                 <input type="hidden" name="location_search" value="<?php echo htmlspecialchars($location_search); ?>">
                 <div class="form-group" style="min-width:280px; margin:0;">
@@ -199,7 +199,7 @@
             </div>
 
             <h3 style="margin-top: 20px;">Location Change Requests</h3>
-            <form method="GET" action="admin_verify_voters.php" style="display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:10px;">
+            <form id="location-search-form" method="GET" action="admin_verify_voters.php" style="display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:10px;">
                 <input type="hidden" name="new_user_search" value="<?php echo htmlspecialchars($new_user_search); ?>">
                 <div class="form-group" style="min-width:220px; margin:0;">
                     <label>Filter Location Request Status</label>

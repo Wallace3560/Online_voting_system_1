@@ -490,7 +490,7 @@ dialog#manage-dialog::backdrop {
 }
 
 .request-scroll-list {
-    max-height: 520px;
+    height: 460px;
     overflow-y: auto;
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
@@ -507,6 +507,7 @@ dialog#manage-dialog::backdrop {
     padding: 12px;
     display: grid;
     gap: 10px;
+    align-content: start;
 }
 
 .request-card-head {
@@ -609,6 +610,10 @@ dialog#manage-dialog::backdrop {
     .request-meta-grid,
     .request-location-dual {
         grid-template-columns: 1fr;
+    }
+
+    .request-scroll-list {
+        height: 420px;
     }
 
     .manage-dialog-body {

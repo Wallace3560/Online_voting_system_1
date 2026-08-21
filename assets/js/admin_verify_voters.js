@@ -327,3 +327,64 @@ if (addByElectionCandidateRowButton && byElectionCandidateRows) {
         }
     });
 }
+
+function ensureInlineEmptyMessage(listEl, messageText) {
+    let emptyEl = listEl.querySelector('.request-empty.js-inline-empty');
+    if (!emptyEl) {
+        emptyEl = document.createElement('div');
+        emptyEl.className = 'request-empty js-inline-empty';
+        emptyEl.style.display = 'none';
+        emptyEl.textContent = messageText;
+        listEl.appendChild(emptyEl);
+    }
+    return emptyEl;
+}
+
+function filterRequestCards(listEl, queryText) {
+    const cards = Array.from(listEl.querySelectorAll('.request-card'));
+    const query = (queryText || '').toLowerCase().trim();
+
+    let visibleCount = 0;
+    cards.forEach((card) => {
+        const cardText = (card.textContent || '').toLowerCase();
+        const matches = query === '' || cardText.indexOf(query) !== -1;
+        card.style.display = matches ? 'grid' : 'none';
+        if (matches) {
+            visibleCount += 1;
+        }
+    });
+
+    return visibleCount;
+}
+
+function bindInlineRequestSearch(formSelector, inputSelector, listSelector, noResultText) {
+    const formEl = document.querySelector(formSelector);
+    const inputEl = formEl ? formEl.querySelector(inputSelector) : null;
+    const listEl = document.querySelector(listSelector);
+
+    if (!formEl || !inputEl || !listEl) {
+        return;
+    }
+
+    const emptyEl = ensureInlineEmptyMessage(listEl, noResultText);
+
+    formEl.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const count = filterRequestCards(listEl, inputEl.value);
+        emptyEl.style.display = count === 0 ? 'block' : 'none';
+    });
+}
+
+bindInlineRequestSearch(
+    '#pending-search-form',
+    'input[name="new_user_search"]:not([type="hidden"])',
+    '#pending-user-requests',
+    'No pending new user requests match your search.'
+);
+
+bindInlineRequestSearch(
+    '#location-search-form',
+    'input[name="location_search"]:not([type="hidden"])',
+    '#location-change-requests',
+    'No location change requests match your search.'
+);
