@@ -399,7 +399,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             echo '<td><strong>Turnout</strong><br>' . $escape_report_value(number_format($turnout_percentage, 2)) . '%</td>';
             echo '</tr></table>';
             echo '<table><thead><tr>';
-            foreach (['Position', 'Candidate', 'Party', 'Votes', 'Percentage', 'Result', 'Position Total Votes', 'Registered Voters', 'Votes Cast', 'Turnout %', 'Archived At'] as $heading) {
+            foreach (['Position', 'Candidate', 'Party', 'Votes', 'Percentage', 'Result', 'Position Total Votes', 'Registered Voters', 'Turnout %', 'Archived At'] as $heading) {
                 echo '<th>' . $escape_report_value($heading) . '</th>';
             }
             echo '</tr></thead><tbody>';
@@ -415,7 +415,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 echo '<td class="' . ($is_leading ? 'yes' : '') . '">' . ($is_leading ? 'Winner' : 'Not leading') . '</td>';
                 echo '<td class="number">' . $escape_report_value((int)($row['total_votes_position'] ?? 0)) . '</td>';
                 echo '<td class="number">' . $escape_report_value((int)($row['registered_voters'] ?? 0)) . '</td>';
-                echo '<td class="number">' . $escape_report_value((int)($row['votes_cast'] ?? 0)) . '</td>';
                 echo '<td class="number">' . $escape_report_value(number_format((float)($row['turnout_percentage'] ?? 0), 2)) . '%</td>';
                 echo '<td>' . $escape_report_value($row['run_archived_at'] ?? $row['archived_at'] ?? '') . '</td>';
                 echo '</tr>';
