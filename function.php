@@ -4520,7 +4520,18 @@ function getArchivedElectionResultsByYear($year) {
               FROM election_results_archive a
               JOIN election_archive_runs r ON r.run_id = a.run_id
               WHERE a.election_year = ?
-              ORDER BY a.run_id ASC, a.position_name ASC, a.votes DESC, a.candidate_name ASC";
+              ORDER BY a.run_id ASC,
+                  CASE LOWER(a.position_name)
+                      WHEN 'president' THEN 1
+                      WHEN 'governor' THEN 2
+                      WHEN 'senator' THEN 3
+                      WHEN 'woman representative' THEN 4
+                      WHEN 'member of national assembly' THEN 5
+                      WHEN 'member of county assembly' THEN 6
+                      ELSE 99
+                  END ASC,
+                  a.votes DESC,
+                  a.candidate_name ASC";
     $stmt = mysqli_prepare($conn, $query);
     if (!$stmt) {
         return [];
