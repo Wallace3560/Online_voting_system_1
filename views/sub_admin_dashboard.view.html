@@ -20,7 +20,7 @@
             <p>Limited access for assisted operations and manual vote intake.</p>
             <div class="dashboard-role-chip">Signed in as role: <strong><?php echo htmlspecialchars($admin_role ?? 'sub_admin'); ?></strong></div>
             <div class="dashboard-header-actions">
-                <a href="admin_logout.php" class="btn btn-danger">Admin Logout</a>
+                <a href="/online_voting_system_1/admin_logout.php" class="btn btn-danger">Admin Logout</a>
             </div>
         </div>
         <div class="card-body">
@@ -41,8 +41,8 @@
             <h3 style="margin-top: 20px;">Allowed Operations</h3>
             <div class="alert alert-info">Sub admins cannot perform sensitive actions such as opening/closing elections, publishing results, or archive reset. They can only submit manual vote batches for super-admin review.</div>
             <div class="toolbar-row" style="margin-bottom: 16px;">
-                <a class="btn btn-secondary" href="admin_records.php?type=candidates">Open Candidate Correction Page</a>
-                <a class="btn btn-secondary" href="admin_candidate_change_history.php">Candidate Change History</a>
+                <a class="btn btn-secondary" href="/online_voting_system_1/admin_records.php?type=candidates">Open Candidate Correction Page</a>
+                <a class="btn btn-secondary" href="/online_voting_system_1/admin_candidate_change_history.php">Candidate Change History</a>
             </div>
 
             <h3 style="margin-top: 20px;">Manual Vote Intake</h3>

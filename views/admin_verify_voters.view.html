@@ -20,7 +20,7 @@
             <p>Manage voter verification, election status, candidates, and publication of results.</p>
             <div class="dashboard-role-chip">Signed in as role: <strong><?php echo htmlspecialchars($admin_role ?? 'super_admin'); ?></strong></div>
             <div class="dashboard-header-actions">
-                <a href="admin_logout.php" class="btn btn-danger">Admin Logout</a>
+                <a href="/online_voting_system_1/admin_logout.php" class="btn btn-danger">Admin Logout</a>
             </div>
         </div>
         <div class="card-body">
@@ -452,8 +452,8 @@
             <div class="alert alert-info">Use this when a leader leaves office. The by-election will only be open for voters eligible in the affected area.</div>
             <?php if (!empty($can_verify_voters)): ?>
             <div class="toolbar-row" style="margin-bottom: 16px;">
-                <a class="btn btn-secondary" href="admin_records.php?type=candidates">Open Candidate Correction Page</a>
-                <a class="btn btn-secondary" href="admin_candidate_change_history.php">Candidate Change History</a>
+                <a class="btn btn-secondary" href="/online_voting_system_1/admin_records.php?type=candidates">Open Candidate Correction Page</a>
+                <a class="btn btn-secondary" href="/online_voting_system_1/admin_candidate_change_history.php">Candidate Change History</a>
             </div>
             <?php endif; ?>
             <form method="POST" action="admin_verify_voters.php" enctype="multipart/form-data" style="margin-bottom: 20px;">
@@ -633,8 +633,8 @@
             <h3 style="margin-top: 20px;">Add Candidate</h3>
             <?php if (!empty($can_verify_voters)): ?>
             <div style="margin-bottom: 12px;">
-                <a class="btn btn-secondary" href="admin_records.php?type=candidates">Manage Existing Election Candidates</a>
-                <a class="btn btn-secondary" href="admin_candidate_change_history.php">Candidate Change History</a>
+                <a class="btn btn-secondary" href="/online_voting_system_1/admin_records.php?type=candidates">Manage Existing Election Candidates</a>
+                <a class="btn btn-secondary" href="/online_voting_system_1/admin_candidate_change_history.php">Candidate Change History</a>
             </div>
             <?php endif; ?>
             <form method="POST" action="admin_verify_voters.php" enctype="multipart/form-data">
