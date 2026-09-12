@@ -4539,9 +4539,16 @@ function getArchivedElectionResultsByYear($year) {
         return [];
     }
 
-    $query = "SELECT a.*, r.archived_at AS run_archived_at
+    $query = "SELECT a.*,
+                     COALESCE(NULLIF(a.county_name, ''), co.county_name) AS report_county_name,
+                     COALESCE(NULLIF(a.constituency_name, ''), cn.constituency_name) AS report_constituency_name,
+                     COALESCE(NULLIF(a.ward_name, ''), w.ward_name) AS report_ward_name,
+                     r.archived_at AS run_archived_at
               FROM election_results_archive a
               JOIN election_archive_runs r ON r.run_id = a.run_id
+              LEFT JOIN counties co ON co.county_id = a.county_id
+              LEFT JOIN constituencies cn ON cn.constituency_id = a.constituency_id
+              LEFT JOIN wards w ON w.ward_id = a.ward_id
               WHERE a.election_year = ?
               ORDER BY a.run_id ASC,
                   CASE LOWER(a.position_name)
@@ -4653,6 +4660,17 @@ function archiveAndResetElectionData($election_year, $admin_id, $archive_note = 
                 $constituency_name = (string)($candidate['constituency_name'] ?? '');
                 $ward_name = (string)($candidate['ward_name'] ?? '');
                 $candidate_photo = (string)($candidate['candidate_photo'] ?? '');
+
+                // Preserve the exact contest location for every non-national position.
+                $position_key = strtolower(trim($position_name));
+                $requires_county = in_array($position_key, ['governor', 'senator', 'woman representative'], true);
+                $requires_constituency = $position_key === 'member of national assembly';
+                $requires_ward = $position_key === 'member of county assembly';
+                if (($requires_county && ($county_id === null || $county_name === ''))
+                    || ($requires_constituency && ($constituency_id === null || $constituency_name === ''))
+                    || ($requires_ward && ($ward_id === null || $ward_name === ''))) {
+                    throw new Exception('Cannot archive ' . $position_name . ' results because a candidate contest location is missing. Configure the candidate county, constituency, or ward first.');
+                }
 
                 mysqli_stmt_bind_param(
                     $archive_stmt,

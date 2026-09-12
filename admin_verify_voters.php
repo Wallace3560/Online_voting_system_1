@@ -419,9 +419,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 echo '<tr' . ($is_leading ? ' class="winner"' : '') . '>';
                 echo '<td class="number">' . $escape_report_value($position_order[$position_key] ?? 99) . '</td>';
                 echo '<td>' . $escape_report_value($row['position_name'] ?? '') . '</td>';
-                echo '<td>' . $escape_report_value($row['county_name'] ?? 'National') . '</td>';
-                echo '<td>' . $escape_report_value($row['constituency_name'] ?? 'National') . '</td>';
-                echo '<td>' . $escape_report_value($row['ward_name'] ?? 'National') . '</td>';
+                echo '<td>' . $escape_report_value($row['report_county_name'] ?? $row['county_name'] ?? 'National') . '</td>';
+                echo '<td>' . $escape_report_value($row['report_constituency_name'] ?? $row['constituency_name'] ?? 'National') . '</td>';
+                echo '<td>' . $escape_report_value($row['report_ward_name'] ?? $row['ward_name'] ?? 'National') . '</td>';
                 echo '<td>' . $escape_report_value($row['candidate_name'] ?? '') . '</td>';
                 echo '<td>' . $escape_report_value($row['party_name'] ?? '') . '</td>';
                 echo '<td class="number">' . $escape_report_value((int)($row['votes'] ?? 0)) . '</td>';
@@ -493,9 +493,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     fputcsv($output, [
                         (int)($position_order[$position_key] ?? 99),
                         (string)($row['position_name'] ?? ''),
-                        (string)($row['county_name'] ?? 'National'),
-                        (string)($row['constituency_name'] ?? 'National'),
-                        (string)($row['ward_name'] ?? 'National'),
+                        (string)($row['report_county_name'] ?? $row['county_name'] ?? 'National'),
+                        (string)($row['report_constituency_name'] ?? $row['constituency_name'] ?? 'National'),
+                        (string)($row['report_ward_name'] ?? $row['ward_name'] ?? 'National'),
                         (string)($row['candidate_name'] ?? ''),
                         (string)($row['party_name'] ?? ''),
                         (int)($row['votes'] ?? 0),
