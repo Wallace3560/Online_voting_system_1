@@ -2026,12 +2026,35 @@ function ensureElectionSchema() {
         registered_voters INT NOT NULL DEFAULT 0,
         votes_cast INT NOT NULL DEFAULT 0,
         turnout_percentage DECIMAL(6,2) NOT NULL DEFAULT 0.00,
+        county_id INT NULL,
+        constituency_id INT NULL,
+        ward_id INT NULL,
+        county_name VARCHAR(150) NULL,
+        constituency_name VARCHAR(150) NULL,
+        ward_name VARCHAR(150) NULL,
+        candidate_photo VARCHAR(255) NULL,
         archived_by_admin_id INT NULL,
         archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_archive_year (election_year),
         INDEX idx_archive_run (run_id),
         INDEX idx_archive_position (position_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    // Backward-compatible migration for archived result location and photo fields.
+    foreach ([
+        'county_id' => 'INT NULL',
+        'constituency_id' => 'INT NULL',
+        'ward_id' => 'INT NULL',
+        'county_name' => 'VARCHAR(150) NULL',
+        'constituency_name' => 'VARCHAR(150) NULL',
+        'ward_name' => 'VARCHAR(150) NULL',
+        'candidate_photo' => 'VARCHAR(255) NULL'
+    ] as $archive_column => $archive_definition) {
+        $archive_column_check = mysqli_query($conn, "SHOW COLUMNS FROM election_results_archive LIKE '" . mysqli_real_escape_string($conn, $archive_column) . "'");
+        if ($archive_column_check && mysqli_num_rows($archive_column_check) === 0) {
+            mysqli_query($conn, "ALTER TABLE election_results_archive ADD COLUMN {$archive_column} {$archive_definition}");
+        }
+    }
 
     mysqli_query($conn, "CREATE TABLE IF NOT EXISTS by_elections (
         by_election_id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -4598,8 +4621,10 @@ function archiveAndResetElectionData($election_year, $admin_id, $archive_note = 
         $archive_query = "INSERT INTO election_results_archive
             (run_id, election_year, position_id, position_name, candidate_id, candidate_name, party_name,
              votes, percentage, is_leading, total_votes_position,
-             registered_voters, votes_cast, turnout_percentage, archived_by_admin_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+             registered_voters, votes_cast, turnout_percentage,
+             county_id, constituency_id, ward_id, county_name, constituency_name, ward_name, candidate_photo,
+             archived_by_admin_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $archive_stmt = mysqli_prepare($conn, $archive_query);
         if (!$archive_stmt) {
             throw new Exception('Unable to save archived election results.');
@@ -4621,10 +4646,17 @@ function archiveAndResetElectionData($election_year, $admin_id, $archive_note = 
                 $registered_voters = (int)($turnout['registered_voters'] ?? 0);
                 $votes_cast = (int)($turnout['votes_cast'] ?? 0);
                 $turnout_percentage = (float)($turnout['turnout_percentage'] ?? 0);
+                $county_id = !empty($candidate['county_id']) ? (int)$candidate['county_id'] : null;
+                $constituency_id = !empty($candidate['constituency_id']) ? (int)$candidate['constituency_id'] : null;
+                $ward_id = !empty($candidate['ward_id']) ? (int)$candidate['ward_id'] : null;
+                $county_name = (string)($candidate['county_name'] ?? '');
+                $constituency_name = (string)($candidate['constituency_name'] ?? '');
+                $ward_name = (string)($candidate['ward_name'] ?? '');
+                $candidate_photo = (string)($candidate['candidate_photo'] ?? '');
 
                 mysqli_stmt_bind_param(
                     $archive_stmt,
-                    "iiisissidiiiidi",
+                    "iiisissidiiiidiiissssi",
                     $run_id,
                     $election_year,
                     $position_id,
@@ -4639,6 +4671,13 @@ function archiveAndResetElectionData($election_year, $admin_id, $archive_note = 
                     $registered_voters,
                     $votes_cast,
                     $turnout_percentage,
+                    $county_id,
+                    $constituency_id,
+                    $ward_id,
+                    $county_name,
+                    $constituency_name,
+                    $ward_name,
+                    $candidate_photo,
                     $admin_id_int
                 );
 
@@ -4673,16 +4712,22 @@ function getElectionResultsData($filters = []) {
     $location_filter = buildVoteLocationFilterSql($filters, 'vv');
     $candidate_filter = buildCandidateScopeFilterSql($filters, 'c');
 
-    $query = "SELECT p.position_id, p.position_name, c.candidate_id, c.full_name, c.party_name, c.candidate_photo,
+        $query = "SELECT p.position_id, p.position_name, c.candidate_id, c.full_name, c.party_name, c.candidate_photo,
+                c.county_id, c.constituency_id, c.ward_id,
+                co.county_name, cn.constituency_name, w.ward_name,
                      COUNT(v.vote_id) AS votes
               FROM positions p
               LEFT JOIN candidates c ON c.position_id = p.position_id AND c.status = 'active'
+            LEFT JOIN counties co ON co.county_id = c.county_id
+            LEFT JOIN constituencies cn ON cn.constituency_id = c.constituency_id
+            LEFT JOIN wards w ON w.ward_id = c.ward_id
               LEFT JOIN votes v ON v.candidate_id = c.candidate_id
               LEFT JOIN voters vv ON vv.voter_id = v.voter_id
               WHERE p.status = 'active'
                 " . $candidate_filter['sql'] . "
                 " . $location_filter['sql'] . "
-              GROUP BY p.position_id, p.position_name, c.candidate_id, c.full_name, c.party_name, c.candidate_photo
+              GROUP BY p.position_id, p.position_name, c.candidate_id, c.full_name, c.party_name, c.candidate_photo,
+                       c.county_id, c.constituency_id, c.ward_id, co.county_name, cn.constituency_name, w.ward_name
               ORDER BY p.display_order ASC, votes DESC, c.full_name ASC";
     $result = mysqli_query($conn, $query);
     $rows = $result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
@@ -4707,6 +4752,12 @@ function getElectionResultsData($filters = []) {
                 'full_name' => $row['full_name'],
                 'party_name' => $row['party_name'],
                 'candidate_photo' => normalizeCandidatePhotoPath($row['candidate_photo'] ?? null),
+                'county_id' => isset($row['county_id']) ? (int)$row['county_id'] : null,
+                'constituency_id' => isset($row['constituency_id']) ? (int)$row['constituency_id'] : null,
+                'ward_id' => isset($row['ward_id']) ? (int)$row['ward_id'] : null,
+                'county_name' => (string)($row['county_name'] ?? ''),
+                'constituency_name' => (string)($row['constituency_name'] ?? ''),
+                'ward_name' => (string)($row['ward_name'] ?? ''),
                 'votes' => $votes
             ];
         }
