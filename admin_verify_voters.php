@@ -353,12 +353,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
     } elseif ($error === '' && $action === 'download_archived_results') {
         $download_year = (int)($_POST['download_year'] ?? 0);
+        $download_format = sanitize($_POST['download_format'] ?? 'csv');
         $rows = getArchivedElectionResultsByYear($download_year);
 
         if ($download_year <= 0) {
             $error = 'Select a valid year to download archived results.';
         } elseif (empty($rows)) {
             $error = 'No archived results found for the selected year.';
+        } elseif ($download_format === 'excel') {
+            $filename = 'election_results_' . $download_year . '_presentation.xls';
+            header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+            $escape_report_value = static function ($value) {
+                return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+            };
+            $archive_batch = (int)($rows[0]['run_id'] ?? 0);
+            $archived_at = (string)($rows[0]['run_archived_at'] ?? $rows[0]['archived_at'] ?? '');
+            $registered_voters = (int)($rows[0]['registered_voters'] ?? 0);
+            $votes_cast = (int)($rows[0]['votes_cast'] ?? 0);
+            $turnout_percentage = (float)($rows[0]['turnout_percentage'] ?? 0);
+
+            echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>';
+            echo 'body{font-family:Calibri,Arial,sans-serif;color:#20352a;margin:24px;}';
+            echo 'h1{color:#087443;margin:0 0 4px;font-size:24px;}';
+            echo '.subtitle{color:#5d7567;margin:0 0 18px;font-size:12px;}';
+            echo '.summary{border-collapse:separate;border-spacing:8px;margin:0 0 18px;}';
+            echo '.summary td{border:1px solid #c8ddd0;padding:9px 14px;background:#eef8f1;border-radius:6px;}';
+            echo '.summary strong{display:block;color:#087443;font-size:11px;text-transform:uppercase;}';
+            echo 'table{border-collapse:collapse;width:100%;font-size:10px;}';
+            echo 'th{background:#087443;color:#fff;border:1px solid #056037;padding:9px 7px;text-align:left;}';
+            echo 'td{border:1px solid #d6e2da;padding:7px;}';
+            echo 'tr:nth-child(even) td{background:#f6fbf7;}';
+            echo '.winner td{background:#e2f5e8;font-weight:bold;}';
+            echo '.number{text-align:right;}';
+            echo '.winner-label{color:#087443;font-weight:bold;}';
+            echo '.footer{margin-top:16px;color:#6b7d72;font-size:10px;}';
+            echo '</style></head><body>';
+            echo '<h1>Official Election Results</h1>';
+            echo '<p class="subtitle">Presentation report for the archived ' . $escape_report_value($download_year) . ' election</p>';
+            echo '<table class="summary"><tr>';
+            echo '<td><strong>Election Year</strong>' . $escape_report_value($download_year) . '</td>';
+            echo '<td><strong>Archive Batch</strong>' . $escape_report_value($archive_batch) . '</td>';
+            echo '<td><strong>Registered Voters</strong>' . $escape_report_value($registered_voters) . '</td>';
+            echo '<td><strong>Votes Cast</strong>' . $escape_report_value($votes_cast) . '</td>';
+            echo '<td><strong>Turnout</strong>' . $escape_report_value(number_format($turnout_percentage, 2)) . '%</td>';
+            echo '</tr></table>';
+            echo '<table><thead><tr>';
+            foreach (['Order', 'Position', 'County', 'Constituency', 'Ward', 'Candidate', 'Party', 'Votes', 'Percentage', 'Result', 'Position Total', 'Registered Voters', 'Turnout %', 'Photo Path'] as $heading) {
+                echo '<th>' . $escape_report_value($heading) . '</th>';
+            }
+            echo '</tr></thead><tbody>';
+
+            $position_order = [
+                'president' => 1,
+                'governor' => 2,
+                'senator' => 3,
+                'woman representative' => 4,
+                'member of national assembly' => 5,
+                'member of county assembly' => 6
+            ];
+            foreach ($rows as $row) {
+                $position_key = strtolower(trim((string)($row['position_name'] ?? '')));
+                $is_leading = !empty($row['is_leading']);
+                echo '<tr' . ($is_leading ? ' class="winner"' : '') . '>';
+                echo '<td class="number">' . $escape_report_value($position_order[$position_key] ?? 99) . '</td>';
+                echo '<td>' . $escape_report_value($row['position_name'] ?? '') . '</td>';
+                echo '<td>' . $escape_report_value($row['county_name'] ?? 'National') . '</td>';
+                echo '<td>' . $escape_report_value($row['constituency_name'] ?? 'National') . '</td>';
+                echo '<td>' . $escape_report_value($row['ward_name'] ?? 'National') . '</td>';
+                echo '<td>' . $escape_report_value($row['candidate_name'] ?? '') . '</td>';
+                echo '<td>' . $escape_report_value($row['party_name'] ?? '') . '</td>';
+                echo '<td class="number">' . $escape_report_value((int)($row['votes'] ?? 0)) . '</td>';
+                echo '<td class="number">' . $escape_report_value(number_format((float)($row['percentage'] ?? 0), 2)) . '%</td>';
+                echo '<td class="' . ($is_leading ? 'winner-label' : '') . '">' . ($is_leading ? 'Winner' : 'Not leading') . '</td>';
+                echo '<td class="number">' . $escape_report_value((int)($row['total_votes_position'] ?? 0)) . '</td>';
+                echo '<td class="number">' . $escape_report_value((int)($row['registered_voters'] ?? 0)) . '</td>';
+                echo '<td class="number">' . $escape_report_value(number_format((float)($row['turnout_percentage'] ?? 0), 2)) . '%</td>';
+                echo '<td>' . $escape_report_value($row['candidate_photo'] ?? '') . '</td>';
+                echo '</tr>';
+            }
+            echo '</tbody></table>';
+            echo '<p class="footer">Generated by the Online Voting System. Archived at ' . $escape_report_value($archived_at) . '.</p>';
+            echo '</body></html>';
+
+            logAuditEvent('admin', (int)$_SESSION['admin_id'], 'archived_results_excel_exported', [
+                'download_year' => $download_year,
+                'rows' => count($rows)
+            ]);
+            exit();
         } else {
             $filename = 'election_results_' . $download_year . '.csv';
             header('Content-Type: text/csv; charset=UTF-8');
