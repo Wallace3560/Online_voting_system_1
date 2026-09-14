@@ -96,7 +96,7 @@
                                         <table>
                                             <thead>
                                                 <tr>
-                                                    <th>Select</th>
+                                                     <img src="<?php echo htmlspecialchars($candidate['candidate_photo']); ?>" alt="<?php echo htmlspecialchars($candidate['full_name']); ?>" class="ballot-candidate-photo" onerror="this.replaceWith(Object.assign(document.createElement('div'), {className: 'ballot-candidate-photo placeholder', textContent: this.alt.charAt(0).toUpperCase()}));">
                                                     <th>Candidate</th>
                                                     <th>Party</th>
                                                 </tr>
@@ -104,7 +104,7 @@
                                             <tbody>
                                             <?php foreach ($by['candidates'] as $candidate): ?>
                                                 <tr>
-                                                    <td>
+                                                     <img src="<?php echo htmlspecialchars($candidate['candidate_photo']); ?>" alt="<?php echo htmlspecialchars($candidate['full_name']); ?>" class="ballot-candidate-photo" onerror="this.replaceWith(Object.assign(document.createElement('div'), {className: 'ballot-candidate-photo placeholder', textContent: this.alt.charAt(0).toUpperCase()}));">
                                                         <input
                                                             type="radio"
                                                             name="by_election_candidate_id"
@@ -112,7 +112,7 @@
                                                             required
                                                         >
                                                     </td>
-                                                    <td>
+                                                         <img src="<?php echo htmlspecialchars($candidate['candidate_photo']); ?>" alt="<?php echo htmlspecialchars($candidate['full_name']); ?>" class="ballot-candidate-photo" onerror="this.replaceWith(Object.assign(document.createElement('div'), {className: 'ballot-candidate-photo placeholder', textContent: this.alt.charAt(0).toUpperCase()}));">
                                                         <div class="ballot-candidate-cell">
                                                             <?php if (!empty($candidate['candidate_photo'])): ?>
                                                                 <img src="<?php echo htmlspecialchars($candidate['candidate_photo']); ?>" alt="<?php echo htmlspecialchars($candidate['full_name']); ?>" class="ballot-candidate-photo">

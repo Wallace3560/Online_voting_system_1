@@ -3164,7 +3164,7 @@ function normalizeCandidatePhotoPath($path) {
 
     $relative = ltrim(str_replace('\\', '/', $value), '/');
     $absolute = __DIR__ . '/' . $relative;
-    return is_file($absolute) ? $value : null;
+    return is_file($absolute) ? '/online_voting_system_1/' . $relative : null;
 }
 
 function getCandidatesForPosition($position_id) {
